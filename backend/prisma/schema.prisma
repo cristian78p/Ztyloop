@@ -1,0 +1,290 @@
+// Schema ZTYLOOP Backend MVC
+// Sin extensiones PostgreSQL: compatible con cualquier schema de Supabase
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_DATABASE_URL")
+}
+
+// ============================================
+// USERS & AUTH
+// ============================================
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  username      String    @unique
+  displayName   String
+  bio           String?
+  avatarUrl     String?
+  bannerUrl     String?
+  passwordHash  String?
+  emailVerified DateTime?
+
+  role   UserRole   @default(USER)
+  status UserStatus @default(ACTIVE)
+
+  followersCount Int @default(0)
+  followingCount Int @default(0)
+  postsCount     Int @default(0)
+  totalScore     Int @default(0)
+  level          Int @default(1)
+  xp             Int @default(0)
+
+  theme Json?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  posts         Post[]
+  votes         Vote[]
+  comments      Comment[]
+  followers     Follow[]       @relation("UserFollowers")
+  following     Follow[]       @relation("UserFollowing")
+  refreshTokens RefreshToken[]
+  saves         Save[]
+
+  @@index([username])
+  @@index([createdAt])
+}
+
+enum UserRole {
+  USER
+  CREATOR
+  BRAND
+  MODERATOR
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  SHADOW_BANNED
+  DELETED
+}
+
+model RefreshToken {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash  String    @unique
+  family     String
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  replacedBy String?
+  createdAt  DateTime  @default(now())
+  ip         String?
+  userAgent  String?
+
+  @@index([userId])
+  @@index([family])
+}
+
+// ============================================
+// CONTENT
+// ============================================
+
+model Post {
+  id         String        @id @default(cuid())
+  authorId   String
+  author     User          @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  type       PostType      @default(IMAGE)
+  caption    String?
+  media      Json
+  category   PostCategory?
+  visibility Visibility    @default(PUBLIC)
+
+  upvotes          Int   @default(0)
+  downvotes        Int   @default(0)
+  score            Int   @default(0)
+  hotScore         Float @default(0)
+  controversyScore Float @default(0)
+
+  commentsCount Int @default(0)
+  savesCount    Int @default(0)
+  viewsCount    Int @default(0)
+
+  publishedAt DateTime  @default(now())
+  editedAt    DateTime?
+  deletedAt   DateTime?
+
+  outfitItems OutfitItem[]
+  hashtags    PostHashtag[]
+  votes       Vote[]
+  comments    Comment[]
+  saves       Save[]
+
+  @@index([authorId])
+  @@index([hotScore])
+  @@index([publishedAt])
+}
+
+enum PostType {
+  IMAGE
+  VIDEO
+  CAROUSEL
+}
+
+enum PostCategory {
+  CASUAL
+  FORMAL
+  COSPLAY
+  STREETWEAR
+  MINIMALIST
+  VINTAGE
+  AESTHETIC
+  GOTHIC
+  Y2K
+  PREPPY
+}
+
+enum Visibility {
+  PUBLIC
+  FOLLOWERS_ONLY
+  PRIVATE
+}
+
+model OutfitItem {
+  id          String   @id @default(cuid())
+  postId      String
+  post        Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  x           Float
+  y           Float
+  imageIndex  Int      @default(0)
+  itemType    ItemType
+  customLabel String?
+  customLink  String?
+  brand       String?
+  price       Float?
+  position    Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  @@index([postId])
+}
+
+enum ItemType {
+  TOP
+  BOTTOM
+  SHOES
+  OUTERWEAR
+  ACCESSORY
+  BAG
+  HEADWEAR
+  EYEWEAR
+  JEWELRY
+  OTHER
+}
+
+// ============================================
+// HASHTAGS
+// ============================================
+
+model Hashtag {
+  id         String        @id @default(cuid())
+  name       String        @unique
+  postsCount Int           @default(0)
+  trendScore Float         @default(0)
+  createdAt  DateTime      @default(now())
+  posts      PostHashtag[]
+
+  @@index([trendScore])
+}
+
+model PostHashtag {
+  postId    String
+  hashtagId String
+  post      Post    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  hashtag   Hashtag @relation(fields: [hashtagId], references: [id], onDelete: Cascade)
+
+  @@id([postId, hashtagId])
+  @@index([hashtagId])
+}
+
+// ============================================
+// VOTING
+// ============================================
+
+model Vote {
+  id         String     @id @default(cuid())
+  userId     String
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  targetType VoteTarget
+  targetId   String
+  postId     String?
+  post       Post?      @relation(fields: [postId], references: [id], onDelete: Cascade)
+  commentId  String?
+  comment    Comment?   @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  value      Int
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+
+  @@unique([userId, targetType, targetId])
+  @@index([targetType, targetId])
+}
+
+enum VoteTarget {
+  POST
+  COMMENT
+}
+
+// ============================================
+// COMMENTS
+// ============================================
+
+model Comment {
+  id        String    @id @default(cuid())
+  postId    String
+  post      Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  parentId  String?
+  parent    Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies   Comment[] @relation("CommentReplies")
+  content   String
+  upvotes   Int       @default(0)
+  downvotes Int       @default(0)
+  score     Int       @default(0)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+  votes     Vote[]
+
+  @@index([postId])
+  @@index([authorId])
+  @@index([parentId])
+}
+
+// ============================================
+// SOCIAL GRAPH
+// ============================================
+
+model Follow {
+  id          String   @id @default(cuid())
+  followerId  String
+  followingId String
+  follower    User     @relation("UserFollowing", fields: [followerId], references: [id], onDelete: Cascade)
+  following   User     @relation("UserFollowers", fields: [followingId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+
+  @@unique([followerId, followingId])
+  @@index([followingId])
+}
+
+model Save {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  postId     String
+  post       Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  collection String?
+  createdAt  DateTime @default(now())
+
+  @@unique([userId, postId])
+  @@index([userId])
+}
