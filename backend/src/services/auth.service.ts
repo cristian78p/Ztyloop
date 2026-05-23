@@ -1,9 +1,11 @@
 import * as argon2 from 'argon2';
 import * as jwt from 'jsonwebtoken';
+import * as crypto from 'crypto';
 import type { SignOptions } from 'jsonwebtoken';
 import { prisma } from '../config/database';
 import { env } from '../config/env';
 import { AppError } from '../utils/app-error';
+import { logger } from '../utils/logger';
 import type { RegisterDto, LoginDto } from '../validators/auth.validator';
 
 // El Service contiene TODA la lógica de negocio.
@@ -47,7 +49,7 @@ export class AuthService {
     return { user, accessToken };
   }
 
-  async login(dto: LoginDto) {
+  async login(dto: LoginDto, ip?: string, userAgent?: string) {
     const user = await prisma.user.findUnique({
       where: { email: dto.email },
       select: {
@@ -72,6 +74,14 @@ export class AuthService {
     const accessToken = this.signAccessToken(user.id);
     const refreshToken = this.signRefreshToken(user.id);
 
+    const family = crypto.randomUUID();
+    const tokenHash = this.hashToken(refreshToken);
+    const expiresAt = new Date(Date.now() + this.parseExpiry(env.JWT_REFRESH_EXPIRES_IN));
+
+    await prisma.refreshToken.create({
+      data: { userId: user.id, tokenHash, family, expiresAt, ip, userAgent },
+    });
+
     const { passwordHash: _, ...safeUser } = user;
     return { user: safeUser, accessToken, refreshToken };
   }
@@ -95,12 +105,60 @@ export class AuthService {
     return user;
   }
 
-  async refreshAccessToken(token: string) {
+  async refreshAccessToken(token: string, ip?: string, userAgent?: string) {
+    let payload: { userId: string };
     try {
-      const payload = jwt.verify(token, env.JWT_REFRESH_SECRET) as { userId: string };
-      return { accessToken: this.signAccessToken(payload.userId) };
+      payload = jwt.verify(token, env.JWT_REFRESH_SECRET) as { userId: string };
     } catch {
       throw new AppError('Token de actualización inválido o expirado', 401);
+    }
+
+    const tokenHash = this.hashToken(token);
+    const stored = await prisma.refreshToken.findUnique({ where: { tokenHash } });
+
+    if (!stored) throw new AppError('Token de actualización inválido', 401);
+
+    if (stored.revokedAt) {
+      // Reutilización detectada: revocar toda la familia
+      logger.warn({ family: stored.family, userId: stored.userId }, 'Reuse of revoked refresh token detected — revoking entire family');
+      await prisma.refreshToken.updateMany({
+        where: { family: stored.family, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
+      throw new AppError('Token de actualización revocado. Inicia sesión de nuevo.', 401);
+    }
+
+    if (stored.expiresAt < new Date()) {
+      await prisma.refreshToken.update({ where: { tokenHash }, data: { revokedAt: new Date() } });
+      throw new AppError('Token de actualización expirado', 401);
+    }
+
+    const newRefreshToken = this.signRefreshToken(payload.userId);
+    const newTokenHash = this.hashToken(newRefreshToken);
+    const expiresAt = new Date(Date.now() + this.parseExpiry(env.JWT_REFRESH_EXPIRES_IN));
+
+    await prisma.$transaction([
+      prisma.refreshToken.update({
+        where: { tokenHash },
+        data: { revokedAt: new Date(), replacedBy: newTokenHash },
+      }),
+      prisma.refreshToken.create({
+        data: { userId: payload.userId, tokenHash: newTokenHash, family: stored.family, expiresAt, ip, userAgent },
+      }),
+    ]);
+
+    return { accessToken: this.signAccessToken(payload.userId), refreshToken: newRefreshToken };
+  }
+
+  async logout(token: string) {
+    const tokenHash = this.hashToken(token);
+    const stored = await prisma.refreshToken.findUnique({ where: { tokenHash } });
+
+    if (stored && !stored.revokedAt) {
+      await prisma.refreshToken.updateMany({
+        where: { family: stored.family, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
     }
   }
 
@@ -114,5 +172,18 @@ export class AuthService {
     return jwt.sign({ userId }, env.JWT_REFRESH_SECRET, {
       expiresIn: env.JWT_REFRESH_EXPIRES_IN as SignOptions['expiresIn'],
     });
+  }
+
+  private hashToken(token: string): string {
+    return crypto.createHash('sha256').update(token).digest('hex');
+  }
+
+  private parseExpiry(expiry: string): number {
+    const match = expiry.match(/^(\d+)([smhd])$/);
+    if (!match) return 30 * 24 * 60 * 60 * 1000;
+    const value = parseInt(match[1]);
+    const unit = match[2];
+    const multipliers: Record<string, number> = { s: 1000, m: 60_000, h: 3_600_000, d: 86_400_000 };
+    return value * (multipliers[unit] ?? 86_400_000);
   }
 }

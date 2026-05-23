@@ -6,12 +6,14 @@ import cookieParser from 'cookie-parser';
 import { env } from './config/env';
 import { router } from './routes';
 import { errorHandler, notFoundHandler } from './middlewares/error.middleware';
+import { apiLimiter } from './middlewares/rate-limit.middleware';
 
 const app = express();
 
 // ─── Seguridad ────────────────────────────────────────────────────────────────
 app.use(helmet());
 app.use(cors({ origin: env.CORS_ORIGIN, credentials: true }));
+app.use(apiLimiter);
 
 // ─── Parsing ──────────────────────────────────────────────────────────────────
 app.use(express.json({ limit: '10mb' }));

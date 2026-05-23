@@ -24,7 +24,9 @@ export class AuthController {
   login = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const dto = req.body as LoginDto;
-      const result = await this.authService.login(dto);
+      const ip = req.ip;
+      const userAgent = req.get('user-agent');
+      const result = await this.authService.login(dto, ip, userAgent);
 
       // refreshToken como cookie HttpOnly (más seguro que localStorage)
       res.cookie('refreshToken', result.refreshToken, {
@@ -42,8 +44,12 @@ export class AuthController {
     }
   };
 
-  logout = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
+  logout = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
+      const token = req.cookies.refreshToken as string;
+      if (token) {
+        await this.authService.logout(token);
+      }
       res.clearCookie('refreshToken');
       res.json(ApiResponse.success(null, 'Sesión cerrada'));
     } catch (error) {
@@ -67,8 +73,19 @@ export class AuthController {
         res.status(401).json(ApiResponse.error('Refresh token requerido'));
         return;
       }
-      const result = await this.authService.refreshAccessToken(token);
-      res.json(ApiResponse.success(result));
+
+      const ip = req.ip;
+      const userAgent = req.get('user-agent');
+      const result = await this.authService.refreshAccessToken(token, ip, userAgent);
+
+      res.cookie('refreshToken', result.refreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge: 30 * 24 * 60 * 60 * 1000,
+      });
+
+      res.json(ApiResponse.success({ accessToken: result.accessToken }));
     } catch (error) {
       next(error);
     }
