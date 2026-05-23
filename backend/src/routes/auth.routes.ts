@@ -12,6 +12,6 @@ const ctrl = new AuthController();
 
 authRouter.post('/register', registerLimiter, validate(registerSchema), ctrl.register);
 authRouter.post('/login', authLimiter, validate(loginSchema), ctrl.login);
-authRouter.post('/logout', authenticate, ctrl.logout);
+authRouter.delete('/logout', authenticate, ctrl.logout);
 authRouter.get('/me', authenticate, ctrl.me);
 authRouter.post('/refresh', ctrl.refresh);

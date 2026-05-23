@@ -4,6 +4,7 @@ import { useUserProfile, useUserPosts } from "@/hooks/useUsers";
 import { useAuth } from "@/hooks/useAuth";
 import { FollowButton } from "@/components/social/FollowButton";
 import { EditPostModal } from "@/components/posts/EditPostModal";
+import { CreatePostModal } from "@/components/posts/CreatePostModal";
 import type { Post } from "@/types";
 
 function fmt(n: number) {
@@ -19,6 +20,7 @@ export function ProfilePage() {
   const { data: postsData, isLoading: postsLoading } = useUserPosts(username);
   const [hoveredPost, setHoveredPost] = useState<string | null>(null);
   const [editingPost, setEditingPost] = useState<Post | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
 
   if (isLoading) {
     return (
@@ -219,9 +221,9 @@ export function ProfilePage() {
               : "Este usuario no ha publicado nada todavía"}
           </p>
           {isOwn && (
-            <Link to="/feed" className="btn-primary mt-4 inline-flex px-6">
+            <button onClick={() => setCreateOpen(true)} className="btn-primary mt-4 inline-flex px-6">
               Publicar outfit
-            </Link>
+            </button>
           )}
         </div>
       )}
@@ -335,6 +337,8 @@ export function ProfilePage() {
           onClose={() => setEditingPost(null)}
         />
       )}
+
+      <CreatePostModal open={createOpen} onClose={() => setCreateOpen(false)} />
     </div>
   );
 }

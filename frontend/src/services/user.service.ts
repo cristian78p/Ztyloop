@@ -14,8 +14,15 @@ export const userService = {
     return data.data;
   },
 
-  async toggleFollow(username: string): Promise<{ following: boolean }> {
-    const { data } = await api.post<{ success: true; data: { following: boolean } }>(
+  async follow(username: string): Promise<{ following: boolean }> {
+    const { data } = await api.put<{ success: true; data: { following: boolean } }>(
+      `/users/${username}/follow`,
+    );
+    return data.data;
+  },
+
+  async unfollow(username: string): Promise<{ following: boolean }> {
+    const { data } = await api.delete<{ success: true; data: { following: boolean } }>(
       `/users/${username}/follow`,
     );
     return data.data;

@@ -12,10 +12,10 @@ export function usePostVote(postId: string) {
   });
 }
 
-export function useCommentVote(commentId: string, postId: string) {
+export function useCommentVote(postId: string, commentId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (value: 1 | -1) => voteService.castCommentVote(commentId, value),
+    mutationFn: (value: 1 | -1) => voteService.castCommentVote(postId, commentId, value),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['comments', postId] }),
   });
 }

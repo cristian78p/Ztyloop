@@ -27,14 +27,26 @@ function PrivateRoute({ children }: { children: ReactNode }) {
   return user ? <>{children}</> : <Navigate to="/login" replace />;
 }
 
+function LandingOrFeed() {
+  const { user, isLoading } = useAuth();
+  if (isLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-border border-t-primary" />
+      </div>
+    );
+  }
+  return user ? <Navigate to="/feed" replace /> : <LandingPage />;
+}
+
 export default function App() {
   const [createOpen, setCreateOpen] = useState(false);
 
   return (
     <AuthProvider>
       <Routes>
-        {/* Landing pública */}
-        <Route path="/" element={<LandingPage />} />
+        {/* Landing pública o redirect al feed si está logueado */}
+        <Route path="/" element={<LandingOrFeed />} />
 
         {/* Auth */}
         <Route element={<AuthLayout />}>

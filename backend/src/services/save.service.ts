@@ -17,7 +17,7 @@ const POST_SELECT = {
 } as const;
 
 export class SaveService {
-  async toggle(userId: string, postId: string) {
+  async save(userId: string, postId: string) {
     const post = await prisma.post.findUnique({ where: { id: postId } });
     if (!post) throw new AppError('Post no encontrado', 404);
 
@@ -25,19 +25,30 @@ export class SaveService {
       where: { userId_postId: { userId, postId } },
     });
 
-    if (existing) {
-      await prisma.$transaction([
-        prisma.save.delete({ where: { userId_postId: { userId, postId } } }),
-        prisma.post.update({ where: { id: postId }, data: { savesCount: { decrement: 1 } } }),
-      ]);
-      return { saved: false };
-    } else {
-      await prisma.$transaction([
-        prisma.save.create({ data: { userId, postId } }),
-        prisma.post.update({ where: { id: postId }, data: { savesCount: { increment: 1 } } }),
-      ]);
-      return { saved: true };
-    }
+    if (existing) return { saved: true }; // ya guardado, idempotente
+
+    await prisma.$transaction([
+      prisma.save.create({ data: { userId, postId } }),
+      prisma.post.update({ where: { id: postId }, data: { savesCount: { increment: 1 } } }),
+    ]);
+    return { saved: true };
+  }
+
+  async unsave(userId: string, postId: string) {
+    const post = await prisma.post.findUnique({ where: { id: postId } });
+    if (!post) throw new AppError('Post no encontrado', 404);
+
+    const existing = await prisma.save.findUnique({
+      where: { userId_postId: { userId, postId } },
+    });
+
+    if (!existing) return { saved: false }; // ya no guardado, idempotente
+
+    await prisma.$transaction([
+      prisma.save.delete({ where: { userId_postId: { userId, postId } } }),
+      prisma.post.update({ where: { id: postId }, data: { savesCount: { decrement: 1 } } }),
+    ]);
+    return { saved: false };
   }
 
   async getSaved(userId: string, page = 1, limit = 20) {

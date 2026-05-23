@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useToggleSave } from '@/hooks/useSaves';
+import { useSavePost, useUnsavePost } from '@/hooks/useSaves';
 import { cn } from '@/utils/cn';
 
 interface SaveButtonProps {
@@ -10,11 +10,14 @@ interface SaveButtonProps {
 
 export function SaveButton({ postId, saved: initialSaved = false, className }: SaveButtonProps) {
   const [saved, setSaved] = useState(initialSaved);
-  const { mutate } = useToggleSave(postId);
+  const { mutate: doSave } = useSavePost(postId);
+  const { mutate: doUnsave } = useUnsavePost(postId);
 
   const handleToggle = () => {
     const prev = saved;
     setSaved(!prev);
+
+    const mutate = prev ? doUnsave : doSave;
     mutate(undefined, {
       onSuccess: (data) => setSaved(data.saved),
       onError: () => setSaved(prev),

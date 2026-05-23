@@ -60,6 +60,8 @@ export interface Post {
   downvotes: number;
   commentsCount: number;
   savesCount?: number;
+  userVote?: number;
+  isSaved?: boolean;
   author: Pick<User, 'id' | 'username' | 'displayName' | 'avatarUrl'>;
   outfitItems?: OutfitItem[];
   hashtags?: { hashtag: { id: string; name: string } }[];
@@ -75,6 +77,7 @@ export interface Comment {
   upvotes: number;
   downvotes: number;
   score: number;
+  userVote?: number;
   createdAt: string;
   updatedAt: string;
   deletedAt: string | null;

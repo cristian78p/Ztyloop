@@ -21,7 +21,7 @@ export class VoteController {
   castCommentVote = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { value } = voteSchema.parse(req.body);
-      const result = await this.voteService.castVote(req.user!.id, 'COMMENT', String(req.params.id), value);
+      const result = await this.voteService.castVote(req.user!.id, 'COMMENT', String(req.params.commentId), value);
       res.json(ApiResponse.success(result));
     } catch (error) {
       next(error);

@@ -31,16 +31,25 @@ export class UserController {
     try {
       const page = Math.max(1, Number(req.query.page) || 1);
       const limit = Math.min(50, Math.max(1, Number(req.query.limit) || 12));
-      const result = await this.userService.getUserPosts(String(req.params.username), page, limit);
+      const result = await this.userService.getUserPosts(String(req.params.username), page, limit, req.user?.id);
       res.json(ApiResponse.success(result));
     } catch (error) {
       next(error);
     }
   };
 
-  toggleFollow = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  follow = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const result = await this.userService.toggleFollow(req.user!.id, String(req.params.username));
+      const result = await this.userService.follow(req.user!.id, String(req.params.username));
+      res.json(ApiResponse.success(result));
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  unfollow = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const result = await this.userService.unfollow(req.user!.id, String(req.params.username));
       res.json(ApiResponse.success(result));
     } catch (error) {
       next(error);

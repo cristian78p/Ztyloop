@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { VoteButton } from './VoteButton';
 import { SaveButton } from './SaveButton';
+import { ImageCarousel } from './ImageCarousel';
 import { formatDistanceToNow } from '@/utils/date';
 import type { Post } from '@/types';
 
@@ -28,8 +29,7 @@ const CATEGORY_LABELS: Record<string, string> = {
 export function PostCard({ post }: { post: Post }) {
   const { user } = useAuth();
   const [imgHovered, setImgHovered] = useState(false);
-  const firstImage = Array.isArray(post.media) ? (post.media as string[])[0] : null;
-  const isCarousel = Array.isArray(post.media) && post.media.length > 1;
+  const images = Array.isArray(post.media) ? (post.media as string[]) : [];
   const comments = post._count?.comments ?? post.commentsCount ?? 0;
   const votes = post.upvotes ?? 0;
   const catColor = post.category ? CATEGORY_COLORS[post.category] : undefined;
@@ -67,23 +67,19 @@ export function PostCard({ post }: { post: Post }) {
         </div>
       </div>
 
-      {/* ── Image ──────────────────────────────────────── */}
-      {firstImage && (
-        <Link
-          to={`/post/${post.id}`}
-          className="relative block overflow-hidden aspect-[4/5] bg-muted"
+      {/* ── Image Carousel ────────────────────────────── */}
+      {images.length > 0 && (
+        <div
+          className="relative"
           onMouseEnter={() => setImgHovered(true)}
           onMouseLeave={() => setImgHovered(false)}
         >
-          <img
-            src={firstImage}
-            alt={post.caption ?? 'Outfit'}
-            className={`h-full w-full object-cover object-center transition-transform duration-700 ${imgHovered ? 'scale-105' : 'scale-100'}`}
-            loading="lazy"
-          />
+          <Link to={`/post/${post.id}`} className="block">
+            <ImageCarousel images={images} alt={post.caption ?? 'Outfit'} />
+          </Link>
 
           {/* Hover overlay */}
-          <div className={`absolute inset-0 flex items-end transition-all duration-400 ${imgHovered ? 'opacity-100' : 'opacity-0'}`}>
+          <div className={`absolute inset-0 flex items-end pointer-events-none transition-all duration-400 ${imgHovered ? 'opacity-100' : 'opacity-0'}`}>
             <div className="w-full bg-gradient-to-t from-black/70 via-black/20 to-transparent p-4">
               <div className="flex items-center gap-4 text-white text-sm font-semibold">
                 <span className="flex items-center gap-1.5">
@@ -101,16 +97,7 @@ export function PostCard({ post }: { post: Post }) {
               </div>
             </div>
           </div>
-
-          {isCarousel && (
-            <span className="absolute right-3 top-3 flex items-center gap-1 rounded-full bg-black/60 px-2 py-0.5 text-xs text-white backdrop-blur-sm">
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <rect x="2" y="7" width="15" height="15" rx="2" /><path d="M17 2h3a2 2 0 0 1 2 2v15" />
-              </svg>
-              {(post.media as string[]).length}
-            </span>
-          )}
-        </Link>
+        </div>
       )}
 
       {/* ── Engagement bar ─────────────────────────────── */}
@@ -119,6 +106,7 @@ export function PostCard({ post }: { post: Post }) {
           postId={post.id}
           upvotes={post.upvotes ?? 0}
           downvotes={post.downvotes ?? 0}
+          userVote={post.userVote ?? 0}
         />
         <Link
           to={`/post/${post.id}`}
@@ -129,7 +117,7 @@ export function PostCard({ post }: { post: Post }) {
           </svg>
           {comments > 0 && <span className="tabular-nums">{comments}</span>}
         </Link>
-        {user && <SaveButton postId={post.id} className="ml-auto" />}
+        {user && <SaveButton postId={post.id} saved={post.isSaved ?? false} className="ml-auto" />}
       </div>
 
       {/* ── Caption ────────────────────────────────────── */}

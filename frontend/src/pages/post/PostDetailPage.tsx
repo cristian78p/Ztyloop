@@ -3,8 +3,11 @@ import { useParams, Link } from 'react-router-dom';
 import { usePost } from '@/hooks/usePosts';
 import { VoteButton } from '@/components/posts/VoteButton';
 import { SaveButton } from '@/components/posts/SaveButton';
+import { ImageCarousel } from '@/components/posts/ImageCarousel';
+import { OutfitPin } from '@/components/posts/OutfitPin';
 import { CommentSection } from '@/components/comments/CommentSection';
 import { EditPostModal } from '@/components/posts/EditPostModal';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { formatDistanceToNow } from '@/utils/date';
 import { useAuth } from '@/hooks/useAuth';
 import { useDeletePost } from '@/hooks/usePosts';
@@ -23,6 +26,7 @@ export function PostDetailPage() {
   const { mutate: deletePost, isPending: deleting } = useDeletePost();
   const navigate = useNavigate();
   const [editOpen, setEditOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   if (isLoading) {
     return (
@@ -45,7 +49,6 @@ export function PostDetailPage() {
   const images = Array.isArray(post.media) ? (post.media as string[]) : [];
 
   const handleDelete = () => {
-    if (!confirm('¿Eliminar este post?')) return;
     deletePost(post.id, { onSuccess: () => navigate('/feed') });
   };
 
@@ -77,57 +80,51 @@ export function PostDetailPage() {
               Editar
             </button>
             <button
-              onClick={handleDelete}
+              onClick={() => setDeleteOpen(true)}
               disabled={deleting}
               className="btn-ghost text-xs text-destructive hover:text-destructive"
             >
-              {deleting ? 'Eliminando...' : 'Eliminar'}
+              Eliminar
             </button>
           </div>
         )}
       </div>
 
-      {/* Images */}
+      {/* Images Carousel */}
       {images.length > 0 && (
         <div className="card overflow-hidden">
-          {images.map((src, i) => (
-            <div key={i} className="relative bg-muted">
-              <img src={src} alt={`Imagen ${i + 1}`} className="w-full h-auto" />
-              {/* Outfit item pins */}
-              {post.outfitItems?.filter((item) => item.imageIndex === i).map((item) => (
-                <div
-                  key={item.id}
-                  className="absolute flex items-center justify-center"
-                  style={{ left: `${item.x}%`, top: `${item.y}%`, transform: 'translate(-50%, -50%)' }}
-                >
-                  <div className="group relative flex h-6 w-6 items-center justify-center rounded-full border-2 border-white bg-black/60 text-white text-xs shadow-md cursor-pointer">
-                    {i + 1}
-                    {(item.customLabel || item.itemType) && (
-                      <div className="absolute bottom-full left-1/2 mb-2 hidden -translate-x-1/2 whitespace-nowrap rounded-lg bg-card border border-border px-2 py-1 text-xs text-foreground shadow-md group-hover:block">
-                        {item.customLabel ?? ITEM_LABELS[item.itemType] ?? item.itemType}
-                        {item.customLink && (
-                          <a href={item.customLink} target="_blank" rel="noreferrer" className="ml-1 text-primary hover:underline">
-                            Ver →
-                          </a>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          ))}
+          <ImageCarousel
+            images={images}
+            alt={post.caption ?? 'Outfit'}
+            renderOverlay={(imageIndex) => (
+              <>
+                {post.outfitItems?.filter((item) => item.imageIndex === imageIndex).map((item) => (
+                  <OutfitPin
+                    key={item.id}
+                    index={post.outfitItems!.indexOf(item) + 1}
+                    x={item.x}
+                    y={item.y}
+                    itemType={item.itemType}
+                    customLabel={item.customLabel}
+                    brand={item.brand}
+                    price={item.price}
+                    customLink={item.customLink}
+                  />
+                ))}
+              </>
+            )}
+          />
         </div>
       )}
 
       {/* Actions + Caption */}
       <div className="card px-4 py-3 space-y-3">
         <div className="flex items-center gap-1">
-          <VoteButton postId={post.id} upvotes={post.upvotes ?? 0} />
+          <VoteButton postId={post.id} upvotes={post.upvotes ?? 0} userVote={post.userVote ?? 0} />
           <span className="text-xs text-muted-foreground ml-2">
             {(post._count?.comments ?? post.commentsCount ?? 0)} comentarios
           </span>
-          <SaveButton postId={post.id} className="ml-auto" />
+          <SaveButton postId={post.id} saved={post.isSaved ?? false} className="ml-auto" />
         </div>
 
         {post.caption && (
@@ -157,6 +154,8 @@ export function PostDetailPage() {
                 <div key={item.id} className="flex items-center gap-2 rounded-lg bg-muted/50 px-3 py-2">
                   <span className="badge shrink-0">{ITEM_LABELS[item.itemType] ?? item.itemType}</span>
                   {item.customLabel && <span className="text-sm truncate">{item.customLabel}</span>}
+                  {item.brand && <span className="text-xs text-muted-foreground truncate">· {item.brand}</span>}
+                  {item.price != null && <span className="text-xs text-primary font-medium">${item.price}</span>}
                   {item.customLink && (
                     <a
                       href={item.customLink}
@@ -185,6 +184,18 @@ export function PostDetailPage() {
       </div>
 
       <EditPostModal post={post} open={editOpen} onClose={() => setEditOpen(false)} />
+
+      <ConfirmDialog
+        open={deleteOpen}
+        title="Eliminar publicación"
+        description="Esta acción no se puede deshacer. Se eliminarán las imágenes, comentarios y etiquetas asociadas."
+        confirmLabel="Eliminar"
+        cancelLabel="Cancelar"
+        variant="danger"
+        loading={deleting}
+        onConfirm={handleDelete}
+        onCancel={() => setDeleteOpen(false)}
+      />
     </div>
   );
 }

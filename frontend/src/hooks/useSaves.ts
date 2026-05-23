@@ -8,10 +8,21 @@ export function useSavedPosts(page = 1) {
   });
 }
 
-export function useToggleSave(postId: string) {
+export function useSavePost(postId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: () => saveService.toggle(postId),
+    mutationFn: () => saveService.save(postId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['saved'] });
+      qc.invalidateQueries({ queryKey: ['post', postId] });
+    },
+  });
+}
+
+export function useUnsavePost(postId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => saveService.unsave(postId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['saved'] });
       qc.invalidateQueries({ queryKey: ['post', postId] });

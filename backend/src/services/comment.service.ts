@@ -4,8 +4,8 @@ import { AppError } from '../utils/app-error';
 const AUTHOR_SELECT = { id: true, username: true, displayName: true, avatarUrl: true } as const;
 
 export class CommentService {
-  async getComments(postId: string) {
-    return prisma.comment.findMany({
+  async getComments(postId: string, userId?: string) {
+    const comments = await prisma.comment.findMany({
       where: { postId, parentId: null, deletedAt: null },
       include: {
         author: { select: AUTHOR_SELECT },
@@ -17,6 +17,39 @@ export class CommentService {
       },
       orderBy: { createdAt: 'desc' },
     });
+
+    if (!userId || comments.length === 0) {
+      return comments.map((c) => ({
+        ...c,
+        userVote: 0,
+        replies: c.replies.map((r) => ({ ...r, userVote: 0 })),
+      }));
+    }
+
+    // Collect all comment IDs (parents + replies) for batch vote query
+    const allIds: string[] = [];
+    for (const c of comments) {
+      allIds.push(c.id);
+      for (const r of c.replies) {
+        allIds.push(r.id);
+      }
+    }
+
+    const votes = await prisma.vote.findMany({
+      where: { userId, targetType: 'COMMENT', targetId: { in: allIds } },
+      select: { targetId: true, value: true },
+    });
+
+    const voteMap = new Map(votes.map((v) => [v.targetId, v.value]));
+
+    return comments.map((c) => ({
+      ...c,
+      userVote: voteMap.get(c.id) ?? 0,
+      replies: c.replies.map((r) => ({
+        ...r,
+        userVote: voteMap.get(r.id) ?? 0,
+      })),
+    }));
   }
 
   async create(postId: string, authorId: string, content: string, parentId?: string) {

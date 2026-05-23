@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { UserController } from '../controllers/user.controller';
 import { SaveController } from '../controllers/save.controller';
-import { authenticate } from '../middlewares/auth.middleware';
+import { authenticate, optionalAuthenticate } from '../middlewares/auth.middleware';
 
 export const userRouter = Router();
 const user = new UserController();
@@ -13,6 +13,8 @@ userRouter.get('/me', authenticate, user.getMe);
 userRouter.patch('/me', authenticate, user.updateProfile);
 
 // Public profile
-userRouter.get('/:username', user.getProfile);
-userRouter.get('/:username/posts', user.getUserPosts);
-userRouter.post('/:username/follow', authenticate, user.toggleFollow);
+userRouter.get('/:username', optionalAuthenticate, user.getProfile);
+userRouter.get('/:username/posts', optionalAuthenticate, user.getUserPosts);
+// Follow — PUT para seguir, DELETE para dejar de seguir
+userRouter.put('/:username/follow', authenticate, user.follow);
+userRouter.delete('/:username/follow', authenticate, user.unfollow);

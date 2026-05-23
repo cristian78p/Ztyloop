@@ -8,24 +8,95 @@ interface CreatePostInput extends CreatePostDto {
 }
 
 export class PostService {
-  async getFeed(page: number, limit: number) {
+
+  /**
+   * Enrich posts with userVote and isSaved for the authenticated user.
+   * Uses batch queries (2 extra queries total, not N+1).
+   */
+  private async enrichWithUserData<T extends { id: string }>(
+    posts: T[],
+    userId?: string,
+  ): Promise<(T & { userVote: number; isSaved: boolean })[]> {
+    if (!userId || posts.length === 0) {
+      return posts.map((p) => ({ ...p, userVote: 0, isSaved: false }));
+    }
+
+    const postIds = posts.map((p) => p.id);
+
+    const [votes, saves] = await Promise.all([
+      prisma.vote.findMany({
+        where: { userId, targetType: 'POST', targetId: { in: postIds } },
+        select: { targetId: true, value: true },
+      }),
+      prisma.save.findMany({
+        where: { userId, postId: { in: postIds } },
+        select: { postId: true },
+      }),
+    ]);
+
+    const voteMap = new Map(votes.map((v) => [v.targetId, v.value]));
+    const saveSet = new Set(saves.map((s) => s.postId));
+
+    return posts.map((p) => ({
+      ...p,
+      userVote: voteMap.get(p.id) ?? 0,
+      isSaved: saveSet.has(p.id),
+    }));
+  }
+
+  async getFeed(page: number, limit: number, userId?: string) {
     const skip = (page - 1) * limit;
-    const [posts, total] = await Promise.all([PostModel.findPublicFeed(skip, limit), PostModel.countPublic()]);
-    return { posts, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } };
+
+    // Public posts + own posts of any visibility
+    const where = userId
+      ? {
+          deletedAt: null,
+          OR: [
+            { visibility: 'PUBLIC' as const },
+            { authorId: userId },
+          ],
+        }
+      : { visibility: 'PUBLIC' as const, deletedAt: null };
+
+    const [posts, total] = await Promise.all([
+      prisma.post.findMany({
+        where,
+        orderBy: [{ hotScore: 'desc' }, { publishedAt: 'desc' }],
+        skip,
+        take: limit,
+        select: {
+          id: true, authorId: true, caption: true, media: true, type: true,
+          category: true, hotScore: true, publishedAt: true,
+          upvotes: true, downvotes: true, commentsCount: true,
+          author: { select: { id: true, username: true, displayName: true, avatarUrl: true } },
+          hashtags: { select: { hashtag: { select: { id: true, name: true } } } },
+          _count: { select: { votes: true, comments: true } },
+        },
+      }),
+      prisma.post.count({ where }),
+    ]);
+
+    const enriched = await this.enrichWithUserData(posts, userId);
+    return { posts: enriched, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } };
   }
 
   async getFollowingFeed(userId: string, page: number, limit: number) {
     const skip = (page - 1) * limit;
     const follows = await prisma.follow.findMany({ where: { followerId: userId }, select: { followingId: true } });
+    const followingIds = follows.map((f) => f.followingId);
 
-    if (follows.length === 0) return { posts: [], pagination: { page, limit, total: 0, totalPages: 0 } };
-
-    const ids = follows.map((f) => f.followingId);
+    // Posts from people I follow (PUBLIC + FOLLOWERS_ONLY) + my own posts of any visibility
     const where = {
-      authorId: { in: ids },
-      visibility: { in: ['PUBLIC', 'FOLLOWERS_ONLY'] as ('PUBLIC' | 'FOLLOWERS_ONLY')[] },
       deletedAt: null,
+      OR: [
+        {
+          authorId: { in: followingIds },
+          visibility: { in: ['PUBLIC', 'FOLLOWERS_ONLY'] as ('PUBLIC' | 'FOLLOWERS_ONLY')[] },
+        },
+        { authorId: userId },
+      ],
     };
+
     const [posts, total] = await Promise.all([
       prisma.post.findMany({
         where,
@@ -41,13 +112,33 @@ export class PostService {
       }),
       prisma.post.count({ where }),
     ]);
-    return { posts, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } };
+    const enriched = await this.enrichWithUserData(posts, userId);
+    return { posts: enriched, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } };
   }
 
-  async getById(id: string) {
+  async getById(id: string, userId?: string) {
     const post = await PostModel.findById(id);
     if (!post) throw new AppError('Post no encontrado', 404);
-    return post;
+
+    // Visibility access control
+    if (post.visibility !== 'PUBLIC') {
+      const isOwner = userId === post.authorId;
+
+      if (!isOwner && post.visibility === 'PRIVATE') {
+        throw new AppError('Post no encontrado', 404);
+      }
+
+      if (!isOwner && post.visibility === 'FOLLOWERS_ONLY') {
+        if (!userId) throw new AppError('Post no encontrado', 404);
+        const isFollower = await prisma.follow.findUnique({
+          where: { followerId_followingId: { followerId: userId, followingId: post.authorId } },
+        });
+        if (!isFollower) throw new AppError('Post no encontrado', 404);
+      }
+    }
+
+    const [enriched] = await this.enrichWithUserData([post], userId);
+    return enriched;
   }
 
   async create(input: CreatePostInput) {

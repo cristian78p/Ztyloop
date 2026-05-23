@@ -1,6 +1,18 @@
 import { api } from './api';
 import type { Post, PaginatedResponse, PostCategory, ItemType } from '@/types';
 
+// ─── Upload de imágenes ──────────────────────────────
+export async function uploadImages(files: File[]): Promise<string[]> {
+  const formData = new FormData();
+  files.forEach((file) => formData.append('images', file));
+  const { data } = await api.post<{ success: true; data: { urls: string[] } }>(
+    '/uploads',
+    formData,
+    { headers: { 'Content-Type': 'multipart/form-data' } },
+  );
+  return data.data.urls;
+}
+
 export interface OutfitItemInput {
   x: number;
   y: number;

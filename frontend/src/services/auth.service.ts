@@ -33,7 +33,7 @@ export const authService = {
   },
 
   async logout(): Promise<void> {
-    await api.post('/auth/logout');
+    await api.delete('/auth/logout');
   },
 
   async me(): Promise<User> {

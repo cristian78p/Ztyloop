@@ -13,19 +13,31 @@ export function FollowButton({ username, isFollowing: initial, className }: Foll
   const [following, setFollowing] = useState(initial);
   const qc = useQueryClient();
 
-  const { mutate, isPending } = useMutation({
-    mutationFn: () => userService.toggleFollow(username),
-    onMutate: () => setFollowing((f) => !f),
-    onError: () => setFollowing(following),
+  const { mutate: doFollow, isPending: followPending } = useMutation({
+    mutationFn: () => userService.follow(username),
+    onMutate: () => setFollowing(true),
+    onError: () => setFollowing(false),
     onSuccess: (data) => {
       setFollowing(data.following);
       qc.invalidateQueries({ queryKey: ['profile', username] });
     },
   });
 
+  const { mutate: doUnfollow, isPending: unfollowPending } = useMutation({
+    mutationFn: () => userService.unfollow(username),
+    onMutate: () => setFollowing(false),
+    onError: () => setFollowing(true),
+    onSuccess: (data) => {
+      setFollowing(data.following);
+      qc.invalidateQueries({ queryKey: ['profile', username] });
+    },
+  });
+
+  const isPending = followPending || unfollowPending;
+
   return (
     <button
-      onClick={() => mutate()}
+      onClick={() => (following ? doUnfollow() : doFollow())}
       disabled={isPending}
       className={cn(
         following ? 'btn-outline' : 'btn-primary',

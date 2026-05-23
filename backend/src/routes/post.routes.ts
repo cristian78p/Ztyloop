@@ -22,13 +22,15 @@ postRouter.post('/', authenticate, validate(createPostSchema), post.create);
 postRouter.patch('/:id', authenticate, validate(updatePostSchema), post.update);
 postRouter.delete('/:id', authenticate, post.delete);
 
-// Votes
-postRouter.post('/:id/vote', authenticate, vote.castPostVote);
+// Votes — PUT porque votar es idempotente (establecer/cambiar voto)
+postRouter.put('/:id/vote', authenticate, vote.castPostVote);
 
 // Comments
-postRouter.get('/:id/comments', comment.getByPost);
+postRouter.get('/:id/comments', optionalAuthenticate, comment.getByPost);
 postRouter.post('/:id/comments', authenticate, comment.create);
 postRouter.delete('/:id/comments/:commentId', authenticate, comment.delete);
+postRouter.put('/:id/comments/:commentId/vote', authenticate, vote.castCommentVote);
 
-// Saves
-postRouter.post('/:id/save', authenticate, save.toggle);
+// Saves — PUT para guardar, DELETE para quitar
+postRouter.put('/:id/save', authenticate, save.save);
+postRouter.delete('/:id/save', authenticate, save.unsave);

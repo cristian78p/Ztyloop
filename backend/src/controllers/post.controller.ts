@@ -10,7 +10,7 @@ export class PostController {
     try {
       const page = Math.max(1, Number(req.query.page) || 1);
       const limit = Math.min(50, Math.max(1, Number(req.query.limit) || 20));
-      res.json(ApiResponse.success(await this.postService.getFeed(page, limit)));
+      res.json(ApiResponse.success(await this.postService.getFeed(page, limit, req.user?.id)));
     } catch (error) { next(error); }
   };
 
@@ -24,7 +24,7 @@ export class PostController {
 
   getById = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      res.json(ApiResponse.success(await this.postService.getById(String(req.params.id))));
+      res.json(ApiResponse.success(await this.postService.getById(String(req.params.id), req.user?.id)));
     } catch (error) { next(error); }
   };
 

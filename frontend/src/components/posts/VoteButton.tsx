@@ -16,14 +16,22 @@ export function VoteButton({ postId, upvotes, userVote = 0 }: VoteButtonProps) {
 
   const handleVote = () => {
     const prev = localVote;
-    const next = prev === 1 ? 0 : 1;
-    setLocalVote(next);
-    setLocalUpvotes((v) => (next === 1 ? v + 1 : v - 1));
+    const prevUpvotes = localUpvotes;
+
+    if (prev === 1) {
+      // Already liked → unlike (toggle off)
+      setLocalVote(0);
+      setLocalUpvotes((v) => v - 1);
+    } else {
+      // Not liked → like
+      setLocalVote(1);
+      setLocalUpvotes((v) => v + 1);
+    }
 
     mutate(1, {
       onError: () => {
         setLocalVote(prev);
-        setLocalUpvotes(upvotes);
+        setLocalUpvotes(prevUpvotes);
       },
       onSuccess: (data) => {
         setLocalVote(data.finalValue > 0 ? 1 : 0);

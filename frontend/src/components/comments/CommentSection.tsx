@@ -9,21 +9,29 @@ import type { Comment } from '@/types';
 function CommentVote({ comment, postId }: { comment: Comment; postId: string }) {
   const { user } = useAuth();
   const [localUpvotes, setLocalUpvotes] = useState(comment.upvotes);
-  const [localVote, setLocalVote] = useState(0);
-  const { mutate } = useCommentVote(comment.id, postId);
+  const [localVote, setLocalVote] = useState((comment.userVote ?? 0) > 0 ? 1 : 0);
+  const { mutate } = useCommentVote(postId, comment.id);
 
   if (!user) return null;
 
   const handleVote = () => {
     const prev = localVote;
-    const next = prev === 1 ? 0 : 1;
-    setLocalVote(next);
-    setLocalUpvotes((v) => (next === 1 ? v + 1 : v - 1));
+    const prevUpvotes = localUpvotes;
+
+    if (prev === 1) {
+      // Already liked → unlike
+      setLocalVote(0);
+      setLocalUpvotes((v) => v - 1);
+    } else {
+      // Not liked → like
+      setLocalVote(1);
+      setLocalUpvotes((v) => v + 1);
+    }
 
     mutate(1, {
       onError: () => {
         setLocalVote(prev);
-        setLocalUpvotes(comment.upvotes);
+        setLocalUpvotes(prevUpvotes);
       },
       onSuccess: (data) => {
         setLocalVote(data.finalValue > 0 ? 1 : 0);

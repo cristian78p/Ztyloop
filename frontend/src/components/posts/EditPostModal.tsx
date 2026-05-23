@@ -3,6 +3,8 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useUpdatePost } from '@/hooks/usePosts';
+import { uploadImages } from '@/services/post.service';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { cn } from '@/utils/cn';
 import type { ItemType, PostCategory, Post } from '@/types';
 import type { OutfitItemInput } from '@/services/post.service';
@@ -31,7 +33,6 @@ const VISIBILITY_LABELS = {
 // ─── Schema ──────────────────────────────────────────────────────────────────
 
 const schema = z.object({
-  mediaUrl: z.string().url('Debe ser una URL válida'),
   caption: z.string().max(2000).optional(),
   category: z.enum([
     'CASUAL','FORMAL','COSPLAY','STREETWEAR','MINIMALIST',
@@ -73,15 +74,16 @@ export function EditPostModal({ post, open, onClose }: EditPostModalProps) {
   const [step, setStep] = useState<Step>('image');
   const [tags, setTags] = useState<LocalTag[]>([]);
   const [pendingTag, setPendingTag] = useState<PendingTag | null>(null);
-  const [cropPosition, setCropPosition] = useState<'top' | 'center' | 'bottom'>('center');
+  const [activeImage, setActiveImage] = useState(0);
+  const [images, setImages] = useState<string[]>([]);
+  const [deletePhotoIdx, setDeletePhotoIdx] = useState<number | null>(null);
+  const [uploading, setUploading] = useState(false);
   const imgRef = useRef<HTMLImageElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const images = Array.isArray(post.media) ? (post.media as string[]) : [];
-
-  const { register, handleSubmit, reset, watch, getValues, formState: { errors } } = useForm<FormData>({
+  const { register, handleSubmit, reset, watch, getValues } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
-      mediaUrl: images[0] ?? '',
       caption: post.caption ?? '',
       category: (post.category as PostCategory | undefined) ?? undefined,
       hashtags: post.hashtags?.map((h) => `#${h.hashtag.name}`).join(' ') ?? '',
@@ -89,18 +91,16 @@ export function EditPostModal({ post, open, onClose }: EditPostModalProps) {
     },
   });
 
-  const mediaUrl = watch('mediaUrl');
-
-  // Sync form + tags every time the modal opens with (possibly updated) post data
+  // Sync form + tags + images every time the modal opens
   useEffect(() => {
     if (!open) return;
     reset({
-      mediaUrl: images[0] ?? '',
       caption: post.caption ?? '',
       category: (post.category as PostCategory | undefined) ?? undefined,
       hashtags: post.hashtags?.map((h) => `#${h.hashtag.name}`).join(' ') ?? '',
       visibility: post.visibility as 'PUBLIC' | 'FOLLOWERS_ONLY' | 'PRIVATE',
     });
+    setImages(Array.isArray(post.media) ? (post.media as string[]) : []);
     setTags(
       (post.outfitItems ?? []).map((item) => ({
         x: item.x,
@@ -114,8 +114,52 @@ export function EditPostModal({ post, open, onClose }: EditPostModalProps) {
       })),
     );
     setStep('image');
+    setActiveImage(0);
     setPendingTag(null);
+    setDeletePhotoIdx(null);
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ─── Remove a single photo ──────────────────────────────────────────────────
+
+  const removePhoto = (idx: number) => {
+    setImages((prev) => prev.filter((_, i) => i !== idx));
+    // Remove tags on that image and re-index tags on later images
+    setTags((prev) =>
+      prev
+        .filter((t) => t.imageIndex !== idx)
+        .map((t) => (t.imageIndex > idx ? { ...t, imageIndex: t.imageIndex - 1 } : t)),
+    );
+    // Adjust activeImage
+    setActiveImage((prev) => {
+      if (prev >= images.length - 1) return Math.max(0, images.length - 2);
+      if (prev > idx) return prev - 1;
+      return prev;
+    });
+    setDeletePhotoIdx(null);
+  };
+
+  // ─── Add new photos ──────────────────────────────────────────────────────
+
+  const handleAddPhotos = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    if (files.length === 0) return;
+
+    const remaining = 10 - images.length;
+    const toUpload = files.slice(0, remaining);
+    if (toUpload.length === 0) return;
+
+    setUploading(true);
+    try {
+      const urls = await uploadImages(toUpload);
+      setImages((prev) => [...prev, ...urls]);
+    } catch {
+      // silently fail — could add toast later
+    } finally {
+      setUploading(false);
+      // Reset input so selecting the same file again triggers onChange
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
 
   // ─── Image tagger handlers ────────────────────────────────────────────────
 
@@ -135,7 +179,7 @@ export function EditPostModal({ post, open, onClose }: EditPostModalProps) {
       {
         x: pendingTag.x,
         y: pendingTag.y,
-        imageIndex: 0,
+        imageIndex: activeImage,
         itemType: pendingTag.itemType,
         customLabel: pendingTag.customLabel || undefined,
         customLink: pendingTag.customLink || undefined,
@@ -160,7 +204,8 @@ export function EditPostModal({ post, open, onClose }: EditPostModalProps) {
       : [];
 
     return {
-      media: [data.mediaUrl],
+      // Mantener TODAS las imágenes originales
+      media: images,
       caption: data.caption || null,
       category: (data.category as PostCategory | undefined) ?? null,
       visibility: data.visibility,
@@ -184,6 +229,7 @@ export function EditPostModal({ post, open, onClose }: EditPostModalProps) {
 
   const STEPS: Step[] = ['image', 'details', 'tags'];
   const stepIdx = STEPS.indexOf(step);
+  const currentImageTags = tags.filter((t) => t.imageIndex === activeImage);
 
   return (
     <div
@@ -192,14 +238,14 @@ export function EditPostModal({ post, open, onClose }: EditPostModalProps) {
     >
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-fade-in" />
 
-      <div className="card relative w-full max-w-lg animate-slide-up overflow-hidden">
+      <div className="card relative w-full max-w-lg max-h-[90vh] overflow-y-auto animate-slide-up">
 
         {/* ── Header ───────────────────────────────────────── */}
-        <div className="flex items-center justify-between border-b border-border px-5 py-4">
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-card px-5 py-4">
           <div>
             <h2 className="font-serif text-base font-semibold leading-none">Editar outfit</h2>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              {step === 'image' ? 'Imagen' : step === 'details' ? 'Detalles' : 'Prendas'}
+              {step === 'image' ? 'Imágenes' : step === 'details' ? 'Detalles' : 'Prendas'}
             </p>
           </div>
           <div className="flex items-center gap-4">
@@ -211,7 +257,7 @@ export function EditPostModal({ post, open, onClose }: EditPostModalProps) {
                     'h-1.5 w-6 rounded-full transition-colors cursor-pointer',
                     i <= stepIdx ? 'bg-primary' : 'bg-muted',
                   )}
-                  onClick={() => i < stepIdx && setStep(s)}
+                  onClick={() => setStep(s)}
                 />
               ))}
             </div>
@@ -219,65 +265,185 @@ export function EditPostModal({ post, open, onClose }: EditPostModalProps) {
           </div>
         </div>
 
-        {/* ── Step 1: Imagen ───────────────────────────────── */}
+        {/* ── Step 1: Imágenes ─────────────────────────── */}
         {step === 'image' && (
-          <div className="p-5 space-y-4 max-h-[75vh] overflow-y-auto">
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium">URL de la imagen</label>
-              <input
-                {...register('mediaUrl')}
-                placeholder="https://ejemplo.com/foto.jpg"
-                className="field-input"
-              />
-              {errors.mediaUrl && (
-                <p className="text-xs text-destructive">{errors.mediaUrl.message}</p>
+          <div className="p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-muted-foreground">
+                Imágenes del post ({images.length}/10)
+              </p>
+              {images.length < 10 && (
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-primary/10 border border-primary/20 px-3 py-1.5 text-xs font-semibold text-primary hover:bg-primary/20 transition-colors disabled:opacity-50"
+                >
+                  {uploading ? (
+                    <>
+                      <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                      Subiendo...
+                    </>
+                  ) : (
+                    <>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <line x1="12" y1="5" x2="12" y2="19" />
+                        <line x1="5" y1="12" x2="19" y2="12" />
+                      </svg>
+                      Añadir fotos
+                    </>
+                  )}
+                </button>
               )}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif"
+                multiple
+                className="hidden"
+                onChange={handleAddPhotos}
+              />
             </div>
 
-            {mediaUrl && !errors.mediaUrl && (
-              <div className="space-y-2">
-                <div className="relative aspect-[4/5] overflow-hidden rounded-xl bg-muted">
-                  <img
-                    src={mediaUrl}
-                    alt="Preview"
-                    className={`h-full w-full object-cover transition-all duration-200 object-${cropPosition}`}
-                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                  />
-                </div>
-                <div className="flex gap-1">
-                  {(['top', 'center', 'bottom'] as const).map((pos) => (
+            {/* Thumbnails en fila scrollable con botón de eliminar */}
+            {images.length > 0 && (
+              <div className="flex gap-3 overflow-x-auto py-2 px-1">
+                {images.map((src, i) => (
+                  <div key={i} className="relative flex-shrink-0 group/thumb">
                     <button
-                      key={pos}
                       type="button"
-                      onClick={() => setCropPosition(pos)}
+                      onClick={() => setActiveImage(i)}
                       className={cn(
-                        'flex-1 rounded-lg py-1 text-xs font-medium transition-colors',
-                        cropPosition === pos
-                          ? 'bg-primary text-primary-foreground'
-                          : 'bg-muted text-muted-foreground hover:bg-muted/80',
+                        'h-16 w-16 rounded-lg overflow-hidden ring-2 transition-all',
+                        activeImage === i ? 'ring-primary' : 'ring-transparent hover:ring-primary/40',
                       )}
                     >
-                      {pos === 'top' ? 'Arriba' : pos === 'center' ? 'Centro' : 'Abajo'}
+                      <img src={src} alt={`Foto ${i + 1}`} className="h-full w-full object-cover" />
                     </button>
-                  ))}
+                    {/* Delete badge */}
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); setDeletePhotoIdx(i); }}
+                      className="absolute -top-2 -right-2 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-white shadow-md opacity-0 group-hover/thumb:opacity-100 transition-opacity hover:scale-110"
+                      title="Eliminar foto"
+                    >
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
+                        <line x1="18" y1="6" x2="6" y2="18" />
+                        <line x1="6" y1="6" x2="18" y2="18" />
+                      </svg>
+                    </button>
+                  </div>
+                ))}
+
+                {/* Add photo mini-button at end of row */}
+                {images.length < 10 && (
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploading}
+                    className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-lg border-2 border-dashed border-muted-foreground/30 text-muted-foreground hover:border-primary hover:text-primary transition-colors disabled:opacity-50"
+                  >
+                    {uploading ? (
+                      <span className="h-5 w-5 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                    ) : (
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                        <line x1="12" y1="5" x2="12" y2="19" />
+                        <line x1="5" y1="12" x2="19" y2="12" />
+                      </svg>
+                    )}
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* Preview principal */}
+            {images.length > 0 && (
+              <div className="relative aspect-[4/5] overflow-hidden rounded-xl bg-muted">
+                <img
+                  src={images[activeImage]}
+                  alt="Preview"
+                  className="h-full w-full object-cover"
+                />
+                <div className="absolute right-3 top-3 flex items-center gap-2">
+                  {images.length > 1 && (
+                    <span className="rounded-full bg-black/60 px-2 py-0.5 text-xs text-white backdrop-blur-sm">
+                      {activeImage + 1}/{images.length}
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setDeletePhotoIdx(activeImage)}
+                    className="flex h-7 w-7 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-sm hover:bg-destructive transition-colors"
+                    title="Eliminar esta foto"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M3 6h18" />
+                      <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+                      <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                    </svg>
+                  </button>
                 </div>
               </div>
             )}
 
+            {/* Empty state */}
+            {images.length === 0 && (
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+                className="flex flex-col items-center justify-center w-full py-14 rounded-xl border-2 border-dashed border-muted-foreground/30 text-muted-foreground hover:border-primary hover:text-primary transition-colors cursor-pointer"
+              >
+                {uploading ? (
+                  <span className="h-8 w-8 animate-spin rounded-full border-2 border-current border-t-transparent mb-2" />
+                ) : (
+                  <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="mb-2 opacity-50">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                    <circle cx="8.5" cy="8.5" r="1.5" />
+                    <polyline points="21 15 16 10 5 21" />
+                  </svg>
+                )}
+                <p className="text-sm font-medium">{uploading ? 'Subiendo...' : 'Añadir imágenes'}</p>
+                <p className="text-xs mt-0.5">Haz clic para seleccionar fotos</p>
+              </button>
+            )}
+
             <button
               type="button"
-              disabled={!mediaUrl || !!errors.mediaUrl}
               onClick={() => setStep('details')}
-              className="btn-primary w-full"
+              disabled={images.length === 0 || uploading}
+              className="btn-primary w-full disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Siguiente →
+              Editar detalles →
             </button>
+
+            {/* Confirm delete photo dialog */}
+            <ConfirmDialog
+              open={deletePhotoIdx !== null}
+              title="Eliminar foto"
+              description={
+                images.length <= 1
+                  ? 'Esta es la última foto del post. No puedes eliminarla, el post necesita al menos una imagen.'
+                  : `¿Eliminar la foto ${(deletePhotoIdx ?? 0) + 1}? Las etiquetas de prendas en esta imagen también se eliminarán.`
+              }
+              confirmLabel={images.length <= 1 ? 'Entendido' : 'Eliminar foto'}
+              cancelLabel={images.length <= 1 ? '' : 'Cancelar'}
+              variant={images.length <= 1 ? 'default' : 'danger'}
+              onConfirm={() => {
+                if (images.length <= 1) {
+                  setDeletePhotoIdx(null);
+                  return;
+                }
+                removePhoto(deletePhotoIdx!);
+              }}
+              onCancel={() => setDeletePhotoIdx(null)}
+            />
           </div>
         )}
 
         {/* ── Step 2: Detalles ────────────────────────────── */}
         {step === 'details' && (
-          <form onSubmit={handleSubmit(onSubmit)} className="p-5 space-y-4 max-h-[75vh] overflow-y-auto">
+          <form onSubmit={handleSubmit(onSubmit)} className="p-5 space-y-4">
 
             {/* Caption */}
             <div className="space-y-1.5">
@@ -327,7 +493,7 @@ export function EditPostModal({ post, open, onClose }: EditPostModalProps) {
 
             <div className="flex gap-3">
               <button type="button" onClick={() => setStep('image')} className="btn-outline flex-1">
-                ← Imagen
+                ← Imágenes
               </button>
               <button type="button" onClick={() => setStep('tags')} className="btn-outline flex-1">
                 Prendas →
@@ -341,33 +507,63 @@ export function EditPostModal({ post, open, onClose }: EditPostModalProps) {
 
         {/* ── Step 3: Prendas ─────────────────────────────── */}
         {step === 'tags' && (
-          <div className="p-5 space-y-4 max-h-[75vh] overflow-y-auto">
+          <div className="p-5 space-y-4">
             <p className="text-sm text-muted-foreground">
               Haz clic en la imagen para etiquetar una prenda.
             </p>
+
+            {/* Selector de imagen para etiquetar (si hay varias) */}
+            {images.length > 1 && (
+              <div className="flex gap-2 overflow-x-auto pb-1">
+                {images.map((src, i) => {
+                  const tagCount = tags.filter((t) => t.imageIndex === i).length;
+                  return (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => { setActiveImage(i); setPendingTag(null); }}
+                      className={cn(
+                        'relative flex-shrink-0 h-12 w-12 rounded-lg overflow-hidden ring-2 transition-all',
+                        activeImage === i ? 'ring-primary' : 'ring-transparent hover:ring-primary/40',
+                      )}
+                    >
+                      <img src={src} alt={`Foto ${i + 1}`} className="h-full w-full object-cover" />
+                      {tagCount > 0 && (
+                        <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-primary-foreground text-[9px] font-bold">
+                          {tagCount}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
 
             {/* Interactive image */}
             <div className="relative aspect-[4/5] cursor-crosshair overflow-hidden rounded-xl bg-muted select-none">
               <img
                 ref={imgRef}
-                src={mediaUrl}
+                src={images[activeImage]}
                 alt="Outfit"
-                className={`h-full w-full object-cover object-${cropPosition}`}
+                className="h-full w-full object-cover"
                 onClick={handleImageClick}
                 draggable={false}
               />
 
-              {/* Confirmed tags */}
-              {tags.map((tag, i) => (
-                <div
-                  key={i}
-                  className="absolute flex h-6 w-6 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 border-white bg-primary text-primary-foreground text-xs font-bold shadow"
-                  style={{ left: `${tag.x}%`, top: `${tag.y}%` }}
-                  title={tag.customLabel ?? ITEM_LABELS[tag.itemType]}
-                >
-                  {i + 1}
-                </div>
-              ))}
+              {/* Confirmed tags for current image */}
+              {currentImageTags.map((tag, _i) => {
+                const globalIdx = tags.indexOf(tag);
+                return (
+                  <div
+                    key={globalIdx}
+                    className="absolute flex h-6 w-6 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 border-white bg-primary text-primary-foreground text-xs font-bold shadow"
+                    style={{ left: `${tag.x}%`, top: `${tag.y}%` }}
+                    title={tag.customLabel ?? ITEM_LABELS[tag.itemType]}
+                  >
+                    {globalIdx + 1}
+                  </div>
+                );
+              })}
 
               {/* Pending tag dot */}
               {pendingTag && (
@@ -377,6 +573,12 @@ export function EditPostModal({ post, open, onClose }: EditPostModalProps) {
                 >
                   +
                 </div>
+              )}
+
+              {images.length > 1 && (
+                <span className="absolute left-3 top-3 rounded-full bg-black/60 px-2 py-0.5 text-xs text-white backdrop-blur-sm">
+                  Foto {activeImage + 1}/{images.length}
+                </span>
               )}
             </div>
 
@@ -455,6 +657,9 @@ export function EditPostModal({ post, open, onClose }: EditPostModalProps) {
                         >
                           {ITEM_TYPES.map((t) => <option key={t} value={t}>{ITEM_LABELS[t]}</option>)}
                         </select>
+                        {images.length > 1 && (
+                          <span className="text-[10px] text-muted-foreground">Foto {tag.imageIndex + 1}</span>
+                        )}
                       </div>
                       <button
                         type="button"

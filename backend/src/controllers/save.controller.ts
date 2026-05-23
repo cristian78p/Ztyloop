@@ -5,9 +5,18 @@ import { ApiResponse } from '../utils/api-response';
 export class SaveController {
   private saveService = new SaveService();
 
-  toggle = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  save = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const result = await this.saveService.toggle(req.user!.id, String(req.params.id));
+      const result = await this.saveService.save(req.user!.id, String(req.params.id));
+      res.json(ApiResponse.success(result));
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  unsave = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const result = await this.saveService.unsave(req.user!.id, String(req.params.id));
       res.json(ApiResponse.success(result));
     } catch (error) {
       next(error);

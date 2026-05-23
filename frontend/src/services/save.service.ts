@@ -2,8 +2,15 @@ import { api } from './api';
 import type { PaginatedResponse, Post } from '@/types';
 
 export const saveService = {
-  async toggle(postId: string): Promise<{ saved: boolean }> {
-    const { data } = await api.post<{ success: true; data: { saved: boolean } }>(
+  async save(postId: string): Promise<{ saved: boolean }> {
+    const { data } = await api.put<{ success: true; data: { saved: boolean } }>(
+      `/posts/${postId}/save`,
+    );
+    return data.data;
+  },
+
+  async unsave(postId: string): Promise<{ saved: boolean }> {
+    const { data } = await api.delete<{ success: true; data: { saved: boolean } }>(
       `/posts/${postId}/save`,
     );
     return data.data;

@@ -13,7 +13,7 @@ export class CommentController {
 
   getByPost = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const comments = await this.commentService.getComments(String(req.params.id));
+      const comments = await this.commentService.getComments(String(req.params.id), req.user?.id);
       res.json(ApiResponse.success(comments));
     } catch (error) {
       next(error);

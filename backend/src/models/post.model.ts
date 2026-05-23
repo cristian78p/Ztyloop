@@ -1,7 +1,8 @@
+import { Prisma, type ItemType } from '@prisma/client';
 import { prisma } from '../config/database';
 
 type OutfitItemInput = {
-  x: number; y: number; imageIndex: number; itemType: string;
+  x: number; y: number; imageIndex: number; itemType: ItemType;
   customLabel?: string; customLink?: string; brand?: string; price?: number;
 };
 
@@ -9,7 +10,7 @@ type UpdateFields = {
   caption?: string | null;
   category?: string | null;
   visibility?: string;
-  media?: unknown;
+  media?: Prisma.InputJsonValue;
 };
 
 export const PostModel = {
@@ -51,32 +52,36 @@ export const PostModel = {
         await tx.outfitItem.deleteMany({ where: { postId: id } });
       }
 
+      // Construir data explícitamente para satisfacer los tipos de Prisma
+      const data: Prisma.PostUpdateInput = { editedAt: new Date() };
+
+      if (fields.caption !== undefined) data.caption = fields.caption;
+      if (fields.category !== undefined) data.category = fields.category as Prisma.PostUpdateInput['category'];
+      if (fields.visibility !== undefined) data.visibility = fields.visibility as Prisma.PostUpdateInput['visibility'];
+      if (fields.media !== undefined) data.media = fields.media;
+
+      if (hashtags !== undefined) {
+        data.hashtags = {
+          create: hashtags.map((tag) => ({
+            hashtag: {
+              connectOrCreate: {
+                where: { name: tag.toLowerCase() },
+                create: { name: tag.toLowerCase() },
+              },
+            },
+          })),
+        };
+      }
+
+      if (outfitItems !== undefined) {
+        data.outfitItems = {
+          create: outfitItems.map((item, idx) => ({ ...item, position: idx })),
+        };
+      }
+
       return tx.post.update({
         where: { id },
-        data: {
-          ...(fields.caption !== undefined && { caption: fields.caption }),
-          ...(fields.category !== undefined && { category: fields.category as never }),
-          ...(fields.visibility !== undefined && { visibility: fields.visibility as never }),
-          ...(fields.media !== undefined && { media: fields.media }),
-          editedAt: new Date(),
-          ...(hashtags !== undefined && {
-            hashtags: {
-              create: hashtags.map((tag) => ({
-                hashtag: {
-                  connectOrCreate: {
-                    where: { name: tag.toLowerCase() },
-                    create: { name: tag.toLowerCase() },
-                  },
-                },
-              })),
-            },
-          }),
-          ...(outfitItems !== undefined && {
-            outfitItems: {
-              create: outfitItems.map((item, idx) => ({ ...item, position: idx })),
-            },
-          }),
-        },
+        data,
         include: {
           author: { select: { id: true, username: true, displayName: true, avatarUrl: true } },
           outfitItems: { orderBy: { position: 'asc' } },
