@@ -41,7 +41,6 @@ export function ExplorePage() {
     <div className="space-y-4">
       <h1 className="text-2xl font-bold tracking-tight">Explorar</h1>
 
-      {/* Search bar */}
       <div className="relative">
         <svg
           className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
@@ -70,7 +69,6 @@ export function ExplorePage() {
         )}
       </div>
 
-      {/* Category filter chips */}
       <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
         {CATEGORIES.map(({ value, label }) => (
           <button
@@ -87,7 +85,6 @@ export function ExplorePage() {
         ))}
       </div>
 
-      {/* Posts */}
       {isLoading && (
         <div className="space-y-4">
           {Array.from({ length: 3 }).map((_, i) => (

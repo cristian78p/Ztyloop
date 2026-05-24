@@ -30,13 +30,12 @@ export function PostCard({ post }: { post: Post }) {
   const { user } = useAuth();
   const [imgHovered, setImgHovered] = useState(false);
   const images = Array.isArray(post.media) ? (post.media as string[]) : [];
-  const comments = post._count?.comments ?? post.commentsCount ?? 0;
+  const comments = post.commentsCount ?? 0;
   const votes = post.upvotes ?? 0;
   const catColor = post.category ? CATEGORY_COLORS[post.category] : undefined;
 
   return (
     <article className="card overflow-hidden animate-slide-up group/card transition-shadow hover:shadow-lg">
-      {/* ── Header ─────────────────────────────────────── */}
       <div className="flex items-center justify-between px-4 pt-4 pb-3">
         <Link
           to={`/profile/${post.author.username}`}
@@ -67,7 +66,6 @@ export function PostCard({ post }: { post: Post }) {
         </div>
       </div>
 
-      {/* ── Image Carousel ────────────────────────────── */}
       {images.length > 0 && (
         <div
           className="relative"
@@ -78,7 +76,6 @@ export function PostCard({ post }: { post: Post }) {
             <ImageCarousel images={images} alt={post.caption ?? 'Outfit'} />
           </Link>
 
-          {/* Hover overlay */}
           <div className={`absolute inset-0 flex items-end pointer-events-none transition-all duration-400 ${imgHovered ? 'opacity-100' : 'opacity-0'}`}>
             <div className="w-full bg-gradient-to-t from-black/70 via-black/20 to-transparent p-4">
               <div className="flex items-center gap-4 text-white text-sm font-semibold">
@@ -100,12 +97,10 @@ export function PostCard({ post }: { post: Post }) {
         </div>
       )}
 
-      {/* ── Engagement bar ─────────────────────────────── */}
       <div className="flex items-center gap-0.5 px-3 pt-2 pb-1">
         <VoteButton
           postId={post.id}
           upvotes={post.upvotes ?? 0}
-          downvotes={post.downvotes ?? 0}
           userVote={post.userVote ?? 0}
         />
         <Link
@@ -120,7 +115,6 @@ export function PostCard({ post }: { post: Post }) {
         {user && <SaveButton postId={post.id} saved={post.isSaved ?? false} className="ml-auto" />}
       </div>
 
-      {/* ── Caption ────────────────────────────────────── */}
       {post.caption ? (
         <div className="px-4 pb-4 pt-1">
           <p className="text-sm leading-relaxed">

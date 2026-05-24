@@ -9,10 +9,6 @@ interface CreatePostInput extends CreatePostDto {
 
 export class PostService {
 
-  /**
-   * Enrich posts with userVote and isSaved for the authenticated user.
-   * Uses batch queries (2 extra queries total, not N+1).
-   */
   private async enrichWithUserData<T extends { id: string }>(
     posts: T[],
     userId?: string,
@@ -47,7 +43,6 @@ export class PostService {
   async getFeed(page: number, limit: number, userId?: string) {
     const skip = (page - 1) * limit;
 
-    // Public posts + own posts of any visibility
     const where = userId
       ? {
           deletedAt: null,
@@ -85,7 +80,6 @@ export class PostService {
     const follows = await prisma.follow.findMany({ where: { followerId: userId }, select: { followingId: true } });
     const followingIds = follows.map((f) => f.followingId);
 
-    // Posts from people I follow (PUBLIC + FOLLOWERS_ONLY) + my own posts of any visibility
     const where = {
       deletedAt: null,
       OR: [
@@ -120,7 +114,6 @@ export class PostService {
     const post = await PostModel.findById(id);
     if (!post) throw new AppError('Post no encontrado', 404);
 
-    // Visibility access control
     if (post.visibility !== 'PUBLIC') {
       const isOwner = userId === post.authorId;
 

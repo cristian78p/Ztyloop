@@ -13,8 +13,6 @@ export interface LoginInput {
   password: string;
 }
 
-// Los services del frontend encapsulan las llamadas HTTP.
-// Los componentes y hooks llaman a estos métodos, no a axios directamente.
 export const authService = {
   async register(input: RegisterInput): Promise<{ user: User; accessToken: string }> {
     const { data } = await api.post<{ success: true; data: { user: User; accessToken: string } }>(

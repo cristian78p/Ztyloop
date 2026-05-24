@@ -1,7 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { ZodSchema } from 'zod';
 
-// Valida req.body con un schema Zod. Retorna 422 con errores detallados si falla.
 export function validate(schema: ZodSchema) {
   return (req: Request, res: Response, next: NextFunction): void => {
     const result = schema.safeParse(req.body);
@@ -15,7 +14,7 @@ export function validate(schema: ZodSchema) {
       return;
     }
 
-    req.body = result.data; // reemplaza con datos parseados y tipados
+    req.body = result.data;
     next();
   };
 }

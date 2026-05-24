@@ -44,7 +44,6 @@ export function MobileNav({ onCreatePost }: MobileNavProps) {
         </svg>,
       )}
 
-      {/* Create button */}
       <button
         onClick={onCreatePost}
         className="flex h-11 w-11 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-md transition-opacity hover:opacity-85 active:scale-95"

@@ -20,6 +20,5 @@ export const loginSchema = z.object({
   password: z.string().min(1, 'Contraseña requerida'),
 });
 
-// Los DTOs tipados se exportan para usar en controllers y services
 export type RegisterDto = z.infer<typeof registerSchema>;
 export type LoginDto = z.infer<typeof loginSchema>;

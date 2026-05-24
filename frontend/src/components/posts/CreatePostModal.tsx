@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useCreatePost } from '@/hooks/usePosts';
 import { uploadImages } from '@/services/post.service';
+import { ItemTypeSelect, ITEM_CONFIG } from '@/components/ui/ItemTypeSelect';
 import { cn } from '@/utils/cn';
 import type { ItemType, PostCategory } from '@/types';
 import type { OutfitItemInput } from '@/services/post.service';
@@ -12,15 +13,6 @@ const CATEGORIES: PostCategory[] = [
   'CASUAL','FORMAL','COSPLAY','STREETWEAR','MINIMALIST',
   'VINTAGE','AESTHETIC','GOTHIC','Y2K','PREPPY',
 ];
-const ITEM_TYPES: ItemType[] = [
-  'TOP','BOTTOM','SHOES','OUTERWEAR','ACCESSORY',
-  'BAG','HEADWEAR','EYEWEAR','JEWELRY','OTHER',
-];
-const ITEM_LABELS: Record<ItemType, string> = {
-  TOP:'Top', BOTTOM:'Parte baja', SHOES:'Zapatos', OUTERWEAR:'Abrigo',
-  ACCESSORY:'Accesorio', BAG:'Bolso', HEADWEAR:'Sombrero', EYEWEAR:'Gafas',
-  JEWELRY:'Joyería', OTHER:'Otro',
-};
 
 const MAX_FILES = 10;
 const MAX_SIZE_MB = 5;
@@ -40,6 +32,8 @@ interface PendingTag {
   itemType: ItemType;
   customLabel: string;
   customLink: string;
+  brand: string;
+  price: string;
 }
 
 interface CreatePostModalProps {
@@ -120,16 +114,19 @@ export function CreatePostModal({ open, onClose }: CreatePostModalProps) {
     const rect = imgRef.current!.getBoundingClientRect();
     const x = ((e.clientX - rect.left) / rect.width) * 100;
     const y = ((e.clientY - rect.top) / rect.height) * 100;
-    setPendingTag({ x, y, itemType: 'TOP', customLabel: '', customLink: '' });
+    setPendingTag({ x, y, itemType: 'TOP', customLabel: '', customLink: '', brand: '', price: '' });
   };
 
   const confirmTag = () => {
     if (!pendingTag) return;
+    const priceNum = parseFloat(pendingTag.price);
     setTags((prev) => [...prev, {
       x: pendingTag.x, y: pendingTag.y,
       itemType: pendingTag.itemType,
       customLabel: pendingTag.customLabel || undefined,
       customLink: pendingTag.customLink || undefined,
+      brand: pendingTag.brand || undefined,
+      price: !isNaN(priceNum) && priceNum > 0 ? priceNum : undefined,
       imageIndex: activePreview,
     }]);
     setPendingTag(null);
@@ -182,7 +179,6 @@ export function CreatePostModal({ open, onClose }: CreatePostModalProps) {
           </div>
         </div>
 
-        {/* Step 1: Image Upload */}
         {step === 'image' && (
           <div className="p-5 space-y-4">
             <div
@@ -273,7 +269,6 @@ export function CreatePostModal({ open, onClose }: CreatePostModalProps) {
           </div>
         )}
 
-        {/* Step 2: Details */}
         {step === 'details' && (
           <form onSubmit={handleSubmit(onSubmit)} className="p-5 space-y-4">
             <div className="space-y-1.5">
@@ -305,7 +300,6 @@ export function CreatePostModal({ open, onClose }: CreatePostModalProps) {
           </form>
         )}
 
-        {/* Step 3: Tags */}
         {step === 'tags' && (
           <div className="p-5 space-y-4">
             <p className="text-sm text-muted-foreground">Haz clic en la imagen para etiquetar una prenda.</p>
@@ -359,32 +353,95 @@ export function CreatePostModal({ open, onClose }: CreatePostModalProps) {
             </div>
 
             {pendingTag && (
-              <div className="card p-3 space-y-2">
+              <div className="card p-3 space-y-2 border-primary/30">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Nueva prenda</p>
                 <div className="grid grid-cols-2 gap-2">
-                  <select value={pendingTag.itemType} onChange={(e) => setPendingTag({ ...pendingTag, itemType: e.target.value as ItemType })} className="field-input text-xs">
-                    {ITEM_TYPES.map((t) => <option key={t} value={t}>{ITEM_LABELS[t]}</option>)}
-                  </select>
-                  <input value={pendingTag.customLabel} onChange={(e) => setPendingTag({ ...pendingTag, customLabel: e.target.value })} placeholder="Etiqueta (opcional)" className="field-input text-xs" />
+                  <ItemTypeSelect
+                    value={pendingTag.itemType}
+                    onChange={(val) => setPendingTag({ ...pendingTag, itemType: val })}
+                  />
+                  <input
+                    value={pendingTag.customLabel}
+                    onChange={(e) => setPendingTag({ ...pendingTag, customLabel: e.target.value })}
+                    placeholder="Nombre (ej. Blazer azul)"
+                    className="field-input text-xs"
+                  />
                 </div>
-                <input value={pendingTag.customLink} onChange={(e) => setPendingTag({ ...pendingTag, customLink: e.target.value })} placeholder="URL de compra (opcional)" className="field-input text-xs" />
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    value={pendingTag.brand}
+                    onChange={(e) => setPendingTag({ ...pendingTag, brand: e.target.value })}
+                    placeholder="Marca (ej. Zara)"
+                    className="field-input text-xs"
+                  />
+                  <input
+                    value={pendingTag.price}
+                    onChange={(e) => setPendingTag({ ...pendingTag, price: e.target.value })}
+                    placeholder="Precio (ej. 29.99)"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    className="field-input text-xs"
+                  />
+                </div>
+                <input
+                  value={pendingTag.customLink}
+                  onChange={(e) => setPendingTag({ ...pendingTag, customLink: e.target.value })}
+                  placeholder="Link de compra (opcional)"
+                  className="field-input text-xs"
+                />
                 <div className="flex gap-2">
                   <button type="button" onClick={() => setPendingTag(null)} className="btn-ghost flex-1 text-xs">Cancelar</button>
-                  <button type="button" onClick={confirmTag} className="btn-primary flex-1 text-xs">Añadir etiqueta</button>
+                  <button type="button" onClick={confirmTag} className="btn-primary flex-1 text-xs">Añadir prenda</button>
                 </div>
               </div>
             )}
 
             {tags.length > 0 && (
-              <div className="space-y-1">
+              <div className="space-y-2">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Prendas etiquetadas ({tags.length})</p>
                 {tags.map((tag, i) => (
-                  <div key={i} className="flex items-center justify-between rounded-lg bg-muted px-3 py-1.5 text-xs">
-                    <span className="font-medium">
-                      {i + 1}. {ITEM_LABELS[tag.itemType]}{tag.customLabel && ` — ${tag.customLabel}`}
-                      {files.length > 1 && <span className="text-muted-foreground"> (Foto {(tag.imageIndex ?? 0) + 1})</span>}
-                    </span>
-                    <button type="button" onClick={() => setTags((prev) => prev.filter((_, j) => j !== i))} className="text-muted-foreground hover:text-destructive">✕</button>
+                  <div key={i} className="card p-3 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground text-[10px] font-bold">
+                          {i + 1}
+                        </span>
+                        <span className="text-xs font-medium">
+                          {ITEM_CONFIG[tag.itemType].label}
+                        </span>
+                        {tag.customLabel && <span className="text-xs text-muted-foreground">— {tag.customLabel}</span>}
+                        {files.length > 1 && (
+                          <span className="text-[10px] text-muted-foreground">Foto {(tag.imageIndex ?? 0) + 1}</span>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setTags((prev) => prev.filter((_, j) => j !== i))}
+                        className="text-xs text-muted-foreground hover:text-destructive transition-colors"
+                      >
+                        ✕ Eliminar
+                      </button>
+                    </div>
+                    {(tag.brand || tag.price || tag.customLink) && (
+                      <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+                        {tag.brand && (
+                          <span className="inline-flex items-center gap-1 rounded-md bg-muted px-1.5 py-0.5">
+                            {tag.brand}
+                          </span>
+                        )}
+                        {tag.price != null && (
+                          <span className="inline-flex items-center gap-1 rounded-md bg-muted px-1.5 py-0.5">
+                            ${tag.price}
+                          </span>
+                        )}
+                        {tag.customLink && (
+                          <span className="inline-flex items-center gap-1 rounded-md bg-muted px-1.5 py-0.5 truncate max-w-[180px]">
+                            {tag.customLink}
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

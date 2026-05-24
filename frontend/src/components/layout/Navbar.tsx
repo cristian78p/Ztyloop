@@ -65,12 +65,10 @@ export function Navbar({ onCreatePost }: NavbarProps) {
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-card/95 backdrop-blur-md">
       <div className="mx-auto flex h-14 max-w-3xl items-center justify-between px-4">
-        {/* Brand */}
         <Link to={user ? '/feed' : '/'} className="text-primary hover:opacity-80 transition-opacity" title="ZTYLOOP">
           <ZZLogo />
         </Link>
 
-        {/* Nav */}
         <nav className="flex items-center gap-4">
           {user ? (
             <>
@@ -112,7 +110,6 @@ export function Navbar({ onCreatePost }: NavbarProps) {
             </>
           )}
 
-          {/* Theme toggle */}
           <button
             onClick={toggleTheme}
             className="btn-ghost p-2"

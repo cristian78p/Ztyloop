@@ -5,27 +5,20 @@ interface ImageCarouselProps {
   images: string[];
   alt?: string;
   className?: string;
-  /** Render overlay content per image (e.g. outfit item pins) */
   renderOverlay?: (imageIndex: number) => React.ReactNode;
 }
 
-/**
- * Carrusel adaptativo: se ajusta al aspect ratio real de la primera imagen.
- * Límites: mínimo 56% del ancho (horizontal tipo 16:9) — máximo 150% del ancho (vertical tipo 2:3).
- * Imágenes dentro se muestran con object-contain para no cortarlas.
- */
 export function ImageCarousel({ images, alt = 'Imagen', className, renderOverlay }: ImageCarouselProps) {
   const [current, setCurrent] = useState(0);
-  const [ratio, setRatio] = useState(4 / 5); // default
+  const [ratio, setRatio] = useState(4 / 5);
+  const [brokenImages, setBrokenImages] = useState<Set<number>>(new Set());
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Calcular aspect ratio de la imagen actual
   useEffect(() => {
     if (images.length === 0) return;
     const img = new Image();
     img.onload = () => {
       const r = img.width / img.height;
-      // Clamp: min 2:3 (0.667) para verticales, max 16:9 (1.78) para horizontales
       const clamped = Math.max(0.667, Math.min(1.78, r));
       setRatio(clamped);
     };
@@ -44,26 +37,35 @@ export function ImageCarousel({ images, alt = 'Imagen', className, renderOverlay
       className={cn('relative overflow-hidden bg-black/5 dark:bg-white/5 group/carousel transition-[aspect-ratio] duration-300', className)}
       style={{ aspectRatio: `${ratio}` }}
     >
-      {/* Images track */}
       <div
         className="flex h-full transition-transform duration-300 ease-out"
         style={{ transform: `translateX(-${current * 100}%)` }}
       >
         {images.map((src, i) => (
           <div key={i} className="relative h-full w-full flex-shrink-0">
-            <img
-              src={src}
-              alt={`${alt} ${i + 1}`}
-              className="h-full w-full object-contain"
-              loading={i === 0 ? 'eager' : 'lazy'}
-              draggable={false}
-            />
+            {brokenImages.has(i) ? (
+              <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-muted text-muted-foreground">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="opacity-40">
+                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                  <line x1="3" y1="3" x2="21" y2="21" />
+                </svg>
+                <span className="text-xs">Imagen no disponible</span>
+              </div>
+            ) : (
+              <img
+                src={src}
+                alt={`${alt} ${i + 1}`}
+                className="h-full w-full object-contain"
+                loading={i === 0 ? 'eager' : 'lazy'}
+                draggable={false}
+                onError={() => setBrokenImages((prev) => new Set(prev).add(i))}
+              />
+            )}
             {renderOverlay?.(i)}
           </div>
         ))}
       </div>
 
-      {/* Arrows */}
       {isCarousel && (
         <>
           {current > 0 && (
@@ -93,7 +95,6 @@ export function ImageCarousel({ images, alt = 'Imagen', className, renderOverlay
         </>
       )}
 
-      {/* Dots */}
       {isCarousel && (
         <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
           {images.map((_, i) => (
@@ -111,7 +112,6 @@ export function ImageCarousel({ images, alt = 'Imagen', className, renderOverlay
         </div>
       )}
 
-      {/* Counter badge */}
       {isCarousel && (
         <span className="absolute right-3 top-3 rounded-full bg-black/60 px-2 py-0.5 text-xs text-white backdrop-blur-sm">
           {current + 1}/{images.length}

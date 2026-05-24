@@ -25,7 +25,6 @@ export function ConfirmDialog({
 }: ConfirmDialogProps) {
   const confirmRef = useRef<HTMLButtonElement>(null);
 
-  // Focus confirm button on open & handle Escape
   useEffect(() => {
     if (!open) return;
     confirmRef.current?.focus();
@@ -49,7 +48,6 @@ export function ConfirmDialog({
 
       <div className="card relative w-full max-w-sm overflow-hidden animate-slide-up">
         <div className="p-6 text-center space-y-3">
-          {/* Icon */}
           <div
             className={`mx-auto flex h-12 w-12 items-center justify-center rounded-full ${
               isDanger ? 'bg-destructive/10' : 'bg-primary/10'
@@ -103,7 +101,7 @@ export function ConfirmDialog({
             {loading ? (
               <span className="flex items-center justify-center gap-2">
                 <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                Eliminando...
+                {confirmLabel}...
               </span>
             ) : (
               confirmLabel

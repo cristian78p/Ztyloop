@@ -16,7 +16,6 @@ export class UserController {
   getProfile = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const profile = await this.userService.getProfile(String(req.params.username));
-      // Attach isFollowing if authenticated
       let isFollowing = false;
       if (req.user) {
         isFollowing = await this.userService.isFollowing(req.user.id, String(req.params.username));

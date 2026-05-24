@@ -45,16 +45,13 @@ export default function App() {
   return (
     <AuthProvider>
       <Routes>
-        {/* Landing pública o redirect al feed si está logueado */}
         <Route path="/" element={<LandingOrFeed />} />
 
-        {/* Auth */}
         <Route element={<AuthLayout />}>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
         </Route>
 
-        {/* App privada */}
         <Route
           element={
             <PrivateRoute>

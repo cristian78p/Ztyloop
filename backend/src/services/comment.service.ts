@@ -26,7 +26,6 @@ export class CommentService {
       }));
     }
 
-    // Collect all comment IDs (parents + replies) for batch vote query
     const allIds: string[] = [];
     for (const c of comments) {
       allIds.push(c.id);

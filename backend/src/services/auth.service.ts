@@ -8,8 +8,6 @@ import { AppError } from '../utils/app-error';
 import { logger } from '../utils/logger';
 import type { RegisterDto, LoginDto } from '../validators/auth.validator';
 
-// El Service contiene TODA la lógica de negocio.
-// No sabe nada de HTTP (sin req/res). Solo recibe datos y retorna resultados.
 export class AuthService {
   async register(dto: RegisterDto) {
     const existing = await prisma.user.findFirst({
@@ -40,6 +38,7 @@ export class AuthService {
         username: true,
         displayName: true,
         avatarUrl: true,
+        bannerUrl: true,
         bio: true,
         role: true,
       },
@@ -58,6 +57,7 @@ export class AuthService {
         username: true,
         displayName: true,
         avatarUrl: true,
+        bannerUrl: true,
         bio: true,
         role: true,
         passwordHash: true,
@@ -95,6 +95,7 @@ export class AuthService {
         username: true,
         displayName: true,
         avatarUrl: true,
+        bannerUrl: true,
         bio: true,
         role: true,
         _count: { select: { followers: true, following: true, posts: true } },
@@ -119,7 +120,6 @@ export class AuthService {
     if (!stored) throw new AppError('Token de actualización inválido', 401);
 
     if (stored.revokedAt) {
-      // Reutilización detectada: revocar toda la familia
       logger.warn({ family: stored.family, userId: stored.userId }, 'Reuse of revoked refresh token detected — revoking entire family');
       await prisma.refreshToken.updateMany({
         where: { family: stored.family, revokedAt: null },

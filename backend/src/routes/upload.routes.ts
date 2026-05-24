@@ -3,14 +3,20 @@ import multer from 'multer';
 import { UploadController } from '../controllers/upload.controller';
 import { authenticate } from '../middlewares/auth.middleware';
 
-const upload = multer({
+const postUpload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024, files: 10 },
+});
+
+const profileUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024, files: 1 },
 });
 
 const ctrl = new UploadController();
 
 export const uploadRouter = Router();
 
-// POST /api/v1/uploads — Subir imágenes (requiere autenticación)
-uploadRouter.post('/', authenticate, upload.array('images', 10), ctrl.uploadImages);
+uploadRouter.post('/', authenticate, postUpload.array('images', 10), ctrl.uploadImages);
+uploadRouter.post('/avatar', authenticate, profileUpload.single('avatar'), ctrl.uploadAvatar);
+uploadRouter.post('/banner', authenticate, profileUpload.single('banner'), ctrl.uploadBanner);

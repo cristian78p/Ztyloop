@@ -15,8 +15,8 @@ type UpdateFields = {
 
 export const PostModel = {
   findById: (id: string) =>
-    prisma.post.findUnique({
-      where: { id },
+    prisma.post.findFirst({
+      where: { id, deletedAt: null },
       include: {
         author: { select: { id: true, username: true, displayName: true, avatarUrl: true } },
         outfitItems: { orderBy: { position: 'asc' } },
@@ -52,7 +52,6 @@ export const PostModel = {
         await tx.outfitItem.deleteMany({ where: { postId: id } });
       }
 
-      // Construir data explícitamente para satisfacer los tipos de Prisma
       const data: Prisma.PostUpdateInput = { editedAt: new Date() };
 
       if (fields.caption !== undefined) data.caption = fields.caption;
@@ -91,5 +90,5 @@ export const PostModel = {
       });
     }),
 
-  delete: (id: string) => prisma.post.delete({ where: { id } }),
+  delete: (id: string) => prisma.post.update({ where: { id }, data: { deletedAt: new Date() } }),
 };

@@ -25,7 +25,7 @@ export class SaveService {
       where: { userId_postId: { userId, postId } },
     });
 
-    if (existing) return { saved: true }; // ya guardado, idempotente
+    if (existing) return { saved: true };
 
     await prisma.$transaction([
       prisma.save.create({ data: { userId, postId } }),
@@ -42,7 +42,7 @@ export class SaveService {
       where: { userId_postId: { userId, postId } },
     });
 
-    if (!existing) return { saved: false }; // ya no guardado, idempotente
+    if (!existing) return { saved: false };
 
     await prisma.$transaction([
       prisma.save.delete({ where: { userId_postId: { userId, postId } } }),

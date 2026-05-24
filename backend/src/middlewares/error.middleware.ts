@@ -2,7 +2,12 @@ import { Request, Response, NextFunction } from 'express';
 import { AppError } from '../utils/app-error';
 import { logger } from '../utils/logger';
 
-// Manejador centralizado de errores. Siempre va AL FINAL de app.ts.
+const MULTER_MESSAGES: Record<string, string> = {
+  LIMIT_FILE_SIZE: 'El archivo excede el tamaño máximo permitido',
+  LIMIT_FILE_COUNT: 'Demasiados archivos',
+  LIMIT_UNEXPECTED_FILE: 'Campo de archivo inesperado',
+};
+
 export function errorHandler(error: Error, req: Request, res: Response, _next: NextFunction): void {
   logger.error({ err: error, path: req.path, method: req.method }, error.message);
 
@@ -14,7 +19,15 @@ export function errorHandler(error: Error, req: Request, res: Response, _next: N
     return;
   }
 
-  // Error no controlado → nunca exponer el stack en producción
+  if (error.name === 'MulterError' && 'code' in error) {
+    const code = (error as Error & { code: string }).code;
+    res.status(400).json({
+      success: false,
+      error: MULTER_MESSAGES[code] ?? error.message,
+    });
+    return;
+  }
+
   res.status(500).json({
     success: false,
     error:

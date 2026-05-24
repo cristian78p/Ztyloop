@@ -1,6 +1,5 @@
 import axios, { type InternalAxiosRequestConfig } from 'axios';
 
-// Extiende la config interna de axios para soportar el flag de reintento
 interface RetryableConfig extends InternalAxiosRequestConfig {
   _retry?: boolean;
 }
@@ -11,14 +10,12 @@ export const api = axios.create({
   withCredentials: true,
 });
 
-// Adjunta el accessToken en cada request
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('accessToken');
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
 
-// Si el accessToken expiró → intenta refrescar automáticamente con el refreshToken (cookie)
 api.interceptors.response.use(
   (response) => response,
   async (error: unknown) => {

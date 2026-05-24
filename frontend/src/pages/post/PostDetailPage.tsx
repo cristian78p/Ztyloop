@@ -54,7 +54,6 @@ export function PostDetailPage() {
 
   return (
     <div className="space-y-4 animate-slide-up">
-      {/* Author header */}
       <div className="flex items-center justify-between">
         <Link to={`/profile/${post.author.username}`} className="flex items-center gap-3 hover:opacity-80 transition-opacity">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground text-sm font-bold">
@@ -90,7 +89,6 @@ export function PostDetailPage() {
         )}
       </div>
 
-      {/* Images Carousel */}
       {images.length > 0 && (
         <div className="card overflow-hidden">
           <ImageCarousel
@@ -117,12 +115,11 @@ export function PostDetailPage() {
         </div>
       )}
 
-      {/* Actions + Caption */}
       <div className="card px-4 py-3 space-y-3">
         <div className="flex items-center gap-1">
           <VoteButton postId={post.id} upvotes={post.upvotes ?? 0} userVote={post.userVote ?? 0} />
           <span className="text-xs text-muted-foreground ml-2">
-            {(post._count?.comments ?? post.commentsCount ?? 0)} comentarios
+            {post.commentsCount ?? 0} comentarios
           </span>
           <SaveButton postId={post.id} saved={post.isSaved ?? false} className="ml-auto" />
         </div>
@@ -136,7 +133,6 @@ export function PostDetailPage() {
           </p>
         )}
 
-        {/* Hashtags */}
         {post.hashtags && post.hashtags.length > 0 && (
           <div className="flex flex-wrap gap-1.5">
             {post.hashtags.map(({ hashtag }) => (
@@ -145,7 +141,6 @@ export function PostDetailPage() {
           </div>
         )}
 
-        {/* Outfit items list */}
         {post.outfitItems && post.outfitItems.length > 0 && (
           <div className="border-t border-border pt-3">
             <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Prendas</p>
@@ -178,7 +173,6 @@ export function PostDetailPage() {
         )}
       </div>
 
-      {/* Comments */}
       <div className="card px-4 py-4">
         <CommentSection postId={post.id} />
       </div>

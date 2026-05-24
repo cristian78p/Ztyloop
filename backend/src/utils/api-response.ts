@@ -1,4 +1,3 @@
-// Estructura de respuesta consistente para toda la API
 export interface SuccessResponse<T> {
   success: true;
   data: T;

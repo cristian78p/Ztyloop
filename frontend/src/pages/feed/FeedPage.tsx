@@ -15,7 +15,6 @@ export function FeedPage() {
 
   return (
     <div className="space-y-4">
-      {/* Tabs */}
       <div className="sticky top-14 z-30 -mx-4 flex border-b border-border bg-background/95 backdrop-blur-md px-4">
         {(['forYou', 'following'] as Tab[]).map((t) => (
           <button

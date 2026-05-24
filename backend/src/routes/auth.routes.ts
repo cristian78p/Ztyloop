@@ -5,8 +5,6 @@ import { authenticate } from '../middlewares/auth.middleware';
 import { registerSchema, loginSchema } from '../validators/auth.validator';
 import { authLimiter, registerLimiter } from '../middlewares/rate-limit.middleware';
 
-// Las rutas SOLO definen endpoints y qué middlewares/controller los atienden.
-// No contienen lógica de negocio.
 export const authRouter = Router();
 const ctrl = new AuthController();
 

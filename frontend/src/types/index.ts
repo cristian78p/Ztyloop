@@ -12,6 +12,7 @@ export interface User {
   username: string;
   displayName: string;
   avatarUrl: string | null;
+  bannerUrl?: string | null;
   bio: string | null;
   role: 'USER' | 'CREATOR' | 'BRAND' | 'MODERATOR' | 'ADMIN';
   _count?: { followers: number; following: number; posts: number };

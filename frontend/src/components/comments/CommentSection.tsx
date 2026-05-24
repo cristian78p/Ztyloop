@@ -19,11 +19,9 @@ function CommentVote({ comment, postId }: { comment: Comment; postId: string }) 
     const prevUpvotes = localUpvotes;
 
     if (prev === 1) {
-      // Already liked → unlike
       setLocalVote(0);
       setLocalUpvotes((v) => v - 1);
     } else {
-      // Not liked → like
       setLocalVote(1);
       setLocalUpvotes((v) => v + 1);
     }
@@ -109,7 +107,6 @@ function CommentCard({
           )}
         </div>
 
-        {/* Replies */}
         {comment.replies && comment.replies.length > 0 && (
           <div className="mt-3 space-y-3 border-l-2 border-border pl-3">
             {comment.replies.map((reply) => (
@@ -149,7 +146,6 @@ export function CommentSection({ postId }: { postId: string }) {
         Comentarios{comments && comments.length > 0 ? ` (${comments.length})` : ''}
       </h3>
 
-      {/* Form */}
       {user && (
         <form onSubmit={handleSubmit} className="space-y-2">
           {replyTo && (
@@ -173,7 +169,6 @@ export function CommentSection({ postId }: { postId: string }) {
         </form>
       )}
 
-      {/* Comments */}
       {isLoading && (
         <div className="space-y-3">
           {[1, 2].map((i) => <div key={i} className="h-12 animate-pulse rounded-lg bg-muted" />)}

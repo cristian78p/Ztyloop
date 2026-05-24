@@ -3,11 +3,6 @@ import { AuthService } from '../services/auth.service';
 import { ApiResponse } from '../utils/api-response';
 import type { RegisterDto, LoginDto } from '../validators/auth.validator';
 
-// El Controller SOLO:
-// 1. Extrae datos del request
-// 2. Llama al service
-// 3. Formatea y envía la respuesta
-// No contiene lógica de negocio.
 export class AuthController {
   private authService = new AuthService();
 
@@ -28,7 +23,6 @@ export class AuthController {
       const userAgent = req.get('user-agent');
       const result = await this.authService.login(dto, ip, userAgent);
 
-      // refreshToken como cookie HttpOnly (más seguro que localStorage)
       res.cookie('refreshToken', result.refreshToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',

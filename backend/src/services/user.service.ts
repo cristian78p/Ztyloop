@@ -27,15 +27,12 @@ export class UserService {
     const user = await prisma.user.findUnique({ where: { username }, select: { id: true } });
     if (!user) throw new AppError('Usuario no encontrado', 404);
 
-    // Determine which visibility levels the viewer can see
     const isOwner = viewerId === user.id;
     let visibilityFilter: object;
 
     if (isOwner) {
-      // Owner sees all their posts
       visibilityFilter = {};
     } else if (viewerId) {
-      // Logged-in user: check if they follow this user
       const isFollower = await prisma.follow.findUnique({
         where: { followerId_followingId: { followerId: viewerId, followingId: user.id } },
       });
@@ -43,7 +40,6 @@ export class UserService {
         ? { visibility: { in: ['PUBLIC', 'FOLLOWERS_ONLY'] } }
         : { visibility: 'PUBLIC' };
     } else {
-      // Anonymous visitor
       visibilityFilter = { visibility: 'PUBLIC' };
     }
 
@@ -87,7 +83,7 @@ export class UserService {
       where: { followerId_followingId: { followerId, followingId: target.id } },
     });
 
-    if (existing) return { following: true }; // ya sigue, idempotente
+    if (existing) return { following: true };
 
     await prisma.$transaction([
       prisma.follow.create({ data: { followerId, followingId: target.id } }),
@@ -106,7 +102,7 @@ export class UserService {
       where: { followerId_followingId: { followerId, followingId: target.id } },
     });
 
-    if (!existing) return { following: false }; // ya no sigue, idempotente
+    if (!existing) return { following: false };
 
     await prisma.$transaction([
       prisma.follow.delete({ where: { followerId_followingId: { followerId, followingId: target.id } } }),

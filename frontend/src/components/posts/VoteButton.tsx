@@ -5,7 +5,6 @@ import { cn } from '@/utils/cn';
 interface VoteButtonProps {
   postId: string;
   upvotes: number;
-  downvotes?: number;
   userVote?: number;
 }
 
@@ -19,11 +18,9 @@ export function VoteButton({ postId, upvotes, userVote = 0 }: VoteButtonProps) {
     const prevUpvotes = localUpvotes;
 
     if (prev === 1) {
-      // Already liked → unlike (toggle off)
       setLocalVote(0);
       setLocalUpvotes((v) => v - 1);
     } else {
-      // Not liked → like
       setLocalVote(1);
       setLocalUpvotes((v) => v + 1);
     }

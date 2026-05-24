@@ -22,7 +22,6 @@ export function OutfitPin({ index, x, y, itemType, customLabel, brand, price, cu
   const ref = useRef<HTMLDivElement>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
 
-  // Cerrar al hacer click fuera
   useEffect(() => {
     if (!open) return;
     const handler = (e: MouseEvent) => {
@@ -34,7 +33,6 @@ export function OutfitPin({ index, x, y, itemType, customLabel, brand, price, cu
     return () => document.removeEventListener('mousedown', handler);
   }, [open]);
 
-  // Calcular si el tooltip debe ir arriba o abajo
   const goDown = y < 25;
   const goRight = x > 70;
   const goLeft = x < 30;
@@ -47,7 +45,6 @@ export function OutfitPin({ index, x, y, itemType, customLabel, brand, price, cu
       className="absolute z-10"
       style={{ left: `${x}%`, top: `${y}%`, transform: 'translate(-50%, -50%)' }}
     >
-      {/* Pin */}
       <button
         type="button"
         onClick={(e) => { e.stopPropagation(); setOpen((v) => !v); }}
@@ -63,7 +60,6 @@ export function OutfitPin({ index, x, y, itemType, customLabel, brand, price, cu
         {index}
       </button>
 
-      {/* Tooltip card */}
       {open && (
         <div
           ref={tooltipRef}
@@ -75,7 +71,6 @@ export function OutfitPin({ index, x, y, itemType, customLabel, brand, price, cu
           `}
           onClick={(e) => e.stopPropagation()}
         >
-          {/* Arrow */}
           <div className={`
             absolute w-3 h-3 bg-card border border-border rotate-45
             ${goDown
@@ -86,19 +81,16 @@ export function OutfitPin({ index, x, y, itemType, customLabel, brand, price, cu
           `} />
 
           <div className="relative p-3 space-y-2">
-            {/* Header: tipo + label */}
             <div className="flex items-center gap-2">
               <span className="inline-flex items-center rounded-md bg-primary/10 border border-primary/20 px-2 py-0.5 text-[10px] font-semibold text-primary uppercase tracking-wide">
                 {ITEM_LABELS[itemType] ?? itemType}
               </span>
             </div>
 
-            {/* Nombre de la prenda */}
             {customLabel && (
               <p className="text-sm font-medium text-foreground leading-snug">{customLabel}</p>
             )}
 
-            {/* Marca y precio */}
             {(brand || price != null) && (
               <div className="flex items-center gap-2">
                 {brand && (
@@ -112,7 +104,6 @@ export function OutfitPin({ index, x, y, itemType, customLabel, brand, price, cu
               </div>
             )}
 
-            {/* Link de compra */}
             {customLink && (
               <a
                 href={customLink}
@@ -129,7 +120,6 @@ export function OutfitPin({ index, x, y, itemType, customLabel, brand, price, cu
               </a>
             )}
 
-            {/* Si no tiene info extra, mostrar solo el label */}
             {!customLabel && !brand && price == null && !customLink && (
               <p className="text-xs text-muted-foreground">{label}</p>
             )}

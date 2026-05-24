@@ -59,7 +59,6 @@ export function ProfilePage() {
 
   return (
     <div className="animate-slide-up">
-      {/* ── Banner ────────────────────────────────────────── */}
       <div className="relative h-52 sm:h-64 overflow-hidden rounded-2xl">
         {profile.bannerUrl ? (
           <img
@@ -70,11 +69,9 @@ export function ProfilePage() {
         ) : (
           <div className="profile-banner-placeholder h-full w-full" />
         )}
-        {/* gradient fade at bottom so avatar reads clearly */}
         <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-background via-background/60 to-transparent" />
       </div>
 
-      {/* ── Avatar + action row ───────────────────────────── */}
       <div className="-mt-14 flex items-end justify-between px-1 sm:px-2">
         <div className="profile-avatar-ring">
           {profile.avatarUrl ? (
@@ -126,7 +123,6 @@ export function ProfilePage() {
         </div>
       </div>
 
-      {/* ── Identity ──────────────────────────────────────── */}
       <div className="mt-3 px-1 sm:px-2">
         <div className="flex items-center gap-2 flex-wrap">
           <h1 className="font-serif text-2xl font-bold leading-none">
@@ -147,7 +143,6 @@ export function ProfilePage() {
           </p>
         )}
 
-        {/* ── Stats ─────────────────────────────────────────── */}
         <div className="mt-5 flex gap-7">
           {[
             { label: "Outfits", value: fmt(profile.postsCount ?? 0) },
@@ -164,10 +159,8 @@ export function ProfilePage() {
         </div>
       </div>
 
-      {/* ── Divider ───────────────────────────────────────── */}
       <div className="mt-7 border-t border-border" />
 
-      {/* ── Grid header ───────────────────────────────────── */}
       <div className="flex items-center justify-between px-1 py-3">
         <div className="flex items-center gap-2">
           <svg
@@ -198,7 +191,6 @@ export function ProfilePage() {
         )}
       </div>
 
-      {/* ── Grid ──────────────────────────────────────────── */}
       {postsLoading && (
         <div className="grid grid-cols-3 gap-0.5">
           {[1, 2, 3, 4, 5, 6].map((i) => (
@@ -235,7 +227,7 @@ export function ProfilePage() {
               ? (post.media as string[])[0]
               : null;
             const votes = post.upvotes ?? 0;
-            const comments = post._count?.comments ?? post.commentsCount ?? 0;
+            const comments = post.commentsCount ?? 0;
 
             return (
               <Link
@@ -258,7 +250,6 @@ export function ProfilePage() {
                   </div>
                 )}
 
-                {/* Hover overlay */}
                 <div
                   className={`absolute inset-0 flex items-center justify-center gap-4 bg-black/0 transition-all duration-300 ${hoveredPost === post.id ? "bg-black/45" : ""}`}
                 >
@@ -290,14 +281,12 @@ export function ProfilePage() {
                   </div>
                 </div>
 
-                {/* Category micro-badge */}
                 {post.category && (
                   <div className="absolute top-2 left-2 rounded-full bg-black/60 px-1.5 py-0.5 text-[9px] text-white backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                     {post.category}
                   </div>
                 )}
 
-                {/* Edit button — only on own posts */}
                 {isOwn && (
                   <button
                     onClick={(e) => {
@@ -327,7 +316,6 @@ export function ProfilePage() {
         </div>
       )}
 
-      {/* bottom breathing room */}
       <div className="h-6" />
 
       {editingPost && (

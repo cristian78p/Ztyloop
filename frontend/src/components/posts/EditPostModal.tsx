@@ -5,32 +5,20 @@ import { z } from 'zod';
 import { useUpdatePost } from '@/hooks/usePosts';
 import { uploadImages } from '@/services/post.service';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { ItemTypeSelect, ITEM_CONFIG } from '@/components/ui/ItemTypeSelect';
 import { cn } from '@/utils/cn';
 import type { ItemType, PostCategory, Post } from '@/types';
 import type { OutfitItemInput } from '@/services/post.service';
-
-// ─── Constants ──────────────────────────────────────────────────────────────
 
 const CATEGORIES: PostCategory[] = [
   'CASUAL','FORMAL','COSPLAY','STREETWEAR','MINIMALIST',
   'VINTAGE','AESTHETIC','GOTHIC','Y2K','PREPPY',
 ];
-const ITEM_TYPES: ItemType[] = [
-  'TOP','BOTTOM','SHOES','OUTERWEAR','ACCESSORY',
-  'BAG','HEADWEAR','EYEWEAR','JEWELRY','OTHER',
-];
-const ITEM_LABELS: Record<ItemType, string> = {
-  TOP:'Top', BOTTOM:'Parte baja', SHOES:'Zapatos', OUTERWEAR:'Abrigo',
-  ACCESSORY:'Accesorio', BAG:'Bolso', HEADWEAR:'Sombrero', EYEWEAR:'Gafas',
-  JEWELRY:'Joyería', OTHER:'Otro',
-};
 const VISIBILITY_LABELS = {
   PUBLIC: 'Público',
   FOLLOWERS_ONLY: 'Solo seguidores',
   PRIVATE: 'Privado',
 } as const;
-
-// ─── Schema ──────────────────────────────────────────────────────────────────
 
 const schema = z.object({
   caption: z.string().max(2000).optional(),
@@ -42,8 +30,6 @@ const schema = z.object({
   visibility: z.enum(['PUBLIC','FOLLOWERS_ONLY','PRIVATE'] as const).default('PUBLIC'),
 });
 type FormData = z.infer<typeof schema>;
-
-// ─── Types ───────────────────────────────────────────────────────────────────
 
 type Step = 'image' | 'details' | 'tags';
 
@@ -66,8 +52,6 @@ interface EditPostModalProps {
   onClose: () => void;
 }
 
-// ─── Component ───────────────────────────────────────────────────────────────
-
 export function EditPostModal({ post, open, onClose }: EditPostModalProps) {
   const { mutate: updatePost, isPending } = useUpdatePost(post.id);
 
@@ -78,6 +62,7 @@ export function EditPostModal({ post, open, onClose }: EditPostModalProps) {
   const [images, setImages] = useState<string[]>([]);
   const [deletePhotoIdx, setDeletePhotoIdx] = useState<number | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const imgRef = useRef<HTMLImageElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -91,7 +76,6 @@ export function EditPostModal({ post, open, onClose }: EditPostModalProps) {
     },
   });
 
-  // Sync form + tags + images every time the modal opens
   useEffect(() => {
     if (!open) return;
     reset({
@@ -117,19 +101,16 @@ export function EditPostModal({ post, open, onClose }: EditPostModalProps) {
     setActiveImage(0);
     setPendingTag(null);
     setDeletePhotoIdx(null);
-  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // ─── Remove a single photo ──────────────────────────────────────────────────
+    setUploadError(null);
+  }, [open]);
 
   const removePhoto = (idx: number) => {
     setImages((prev) => prev.filter((_, i) => i !== idx));
-    // Remove tags on that image and re-index tags on later images
     setTags((prev) =>
       prev
         .filter((t) => t.imageIndex !== idx)
         .map((t) => (t.imageIndex > idx ? { ...t, imageIndex: t.imageIndex - 1 } : t)),
     );
-    // Adjust activeImage
     setActiveImage((prev) => {
       if (prev >= images.length - 1) return Math.max(0, images.length - 2);
       if (prev > idx) return prev - 1;
@@ -137,8 +118,6 @@ export function EditPostModal({ post, open, onClose }: EditPostModalProps) {
     });
     setDeletePhotoIdx(null);
   };
-
-  // ─── Add new photos ──────────────────────────────────────────────────────
 
   const handleAddPhotos = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);
@@ -149,19 +128,17 @@ export function EditPostModal({ post, open, onClose }: EditPostModalProps) {
     if (toUpload.length === 0) return;
 
     setUploading(true);
+    setUploadError(null);
     try {
       const urls = await uploadImages(toUpload);
       setImages((prev) => [...prev, ...urls]);
-    } catch {
-      // silently fail — could add toast later
+    } catch (err: unknown) {
+      setUploadError(err instanceof Error ? err.message : 'Error al subir imágenes');
     } finally {
       setUploading(false);
-      // Reset input so selecting the same file again triggers onChange
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
-
-  // ─── Image tagger handlers ────────────────────────────────────────────────
 
   const handleImageClick = (e: React.MouseEvent<HTMLImageElement>) => {
     if (pendingTag) return;
@@ -196,15 +173,12 @@ export function EditPostModal({ post, open, onClose }: EditPostModalProps) {
     setTags((prev) => prev.map((t, i) => (i === idx ? { ...t, [field]: value } : t)));
   };
 
-  // ─── Submit ───────────────────────────────────────────────────────────────
-
   const buildPayload = (data: FormData) => {
     const hashtagArr = data.hashtags
       ? data.hashtags.split(/[\s,]+/).filter(Boolean).map((t) => t.replace(/^#/, '').toLowerCase())
       : [];
 
     return {
-      // Mantener TODAS las imágenes originales
       media: images,
       caption: data.caption || null,
       category: (data.category as PostCategory | undefined) ?? null,
@@ -240,7 +214,6 @@ export function EditPostModal({ post, open, onClose }: EditPostModalProps) {
 
       <div className="card relative w-full max-w-lg max-h-[90vh] overflow-y-auto animate-slide-up">
 
-        {/* ── Header ───────────────────────────────────────── */}
         <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-card px-5 py-4">
           <div>
             <h2 className="font-serif text-base font-semibold leading-none">Editar outfit</h2>
@@ -265,7 +238,6 @@ export function EditPostModal({ post, open, onClose }: EditPostModalProps) {
           </div>
         </div>
 
-        {/* ── Step 1: Imágenes ─────────────────────────── */}
         {step === 'image' && (
           <div className="p-5 space-y-4">
             <div className="flex items-center justify-between">
@@ -305,7 +277,6 @@ export function EditPostModal({ post, open, onClose }: EditPostModalProps) {
               />
             </div>
 
-            {/* Thumbnails en fila scrollable con botón de eliminar */}
             {images.length > 0 && (
               <div className="flex gap-3 overflow-x-auto py-2 px-1">
                 {images.map((src, i) => (
@@ -320,7 +291,6 @@ export function EditPostModal({ post, open, onClose }: EditPostModalProps) {
                     >
                       <img src={src} alt={`Foto ${i + 1}`} className="h-full w-full object-cover" />
                     </button>
-                    {/* Delete badge */}
                     <button
                       type="button"
                       onClick={(e) => { e.stopPropagation(); setDeletePhotoIdx(i); }}
@@ -335,7 +305,6 @@ export function EditPostModal({ post, open, onClose }: EditPostModalProps) {
                   </div>
                 ))}
 
-                {/* Add photo mini-button at end of row */}
                 {images.length < 10 && (
                   <button
                     type="button"
@@ -356,7 +325,6 @@ export function EditPostModal({ post, open, onClose }: EditPostModalProps) {
               </div>
             )}
 
-            {/* Preview principal */}
             {images.length > 0 && (
               <div className="relative aspect-[4/5] overflow-hidden rounded-xl bg-muted">
                 <img
@@ -386,7 +354,6 @@ export function EditPostModal({ post, open, onClose }: EditPostModalProps) {
               </div>
             )}
 
-            {/* Empty state */}
             {images.length === 0 && (
               <button
                 type="button"
@@ -408,6 +375,10 @@ export function EditPostModal({ post, open, onClose }: EditPostModalProps) {
               </button>
             )}
 
+            {uploadError && (
+              <p className="text-xs text-destructive">{uploadError}</p>
+            )}
+
             <button
               type="button"
               onClick={() => setStep('details')}
@@ -417,7 +388,6 @@ export function EditPostModal({ post, open, onClose }: EditPostModalProps) {
               Editar detalles →
             </button>
 
-            {/* Confirm delete photo dialog */}
             <ConfirmDialog
               open={deletePhotoIdx !== null}
               title="Eliminar foto"
@@ -441,11 +411,9 @@ export function EditPostModal({ post, open, onClose }: EditPostModalProps) {
           </div>
         )}
 
-        {/* ── Step 2: Detalles ────────────────────────────── */}
         {step === 'details' && (
           <form onSubmit={handleSubmit(onSubmit)} className="p-5 space-y-4">
 
-            {/* Caption */}
             <div className="space-y-1.5">
               <label className="text-sm font-medium">Descripción</label>
               <textarea
@@ -460,7 +428,6 @@ export function EditPostModal({ post, open, onClose }: EditPostModalProps) {
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              {/* Category */}
               <div className="space-y-1.5">
                 <label className="text-sm font-medium">Categoría</label>
                 <select {...register('category')} className="field-input">
@@ -473,7 +440,6 @@ export function EditPostModal({ post, open, onClose }: EditPostModalProps) {
                 </select>
               </div>
 
-              {/* Visibility */}
               <div className="space-y-1.5">
                 <label className="text-sm font-medium">Visibilidad</label>
                 <select {...register('visibility')} className="field-input">
@@ -484,7 +450,6 @@ export function EditPostModal({ post, open, onClose }: EditPostModalProps) {
               </div>
             </div>
 
-            {/* Hashtags */}
             <div className="space-y-1.5">
               <label className="text-sm font-medium">Hashtags</label>
               <input {...register('hashtags')} placeholder="#ootd #style #vintage" className="field-input" />
@@ -505,14 +470,12 @@ export function EditPostModal({ post, open, onClose }: EditPostModalProps) {
           </form>
         )}
 
-        {/* ── Step 3: Prendas ─────────────────────────────── */}
         {step === 'tags' && (
           <div className="p-5 space-y-4">
             <p className="text-sm text-muted-foreground">
               Haz clic en la imagen para etiquetar una prenda.
             </p>
 
-            {/* Selector de imagen para etiquetar (si hay varias) */}
             {images.length > 1 && (
               <div className="flex gap-2 overflow-x-auto pb-1">
                 {images.map((src, i) => {
@@ -539,7 +502,6 @@ export function EditPostModal({ post, open, onClose }: EditPostModalProps) {
               </div>
             )}
 
-            {/* Interactive image */}
             <div className="relative aspect-[4/5] cursor-crosshair overflow-hidden rounded-xl bg-muted select-none">
               <img
                 ref={imgRef}
@@ -550,7 +512,6 @@ export function EditPostModal({ post, open, onClose }: EditPostModalProps) {
                 draggable={false}
               />
 
-              {/* Confirmed tags for current image */}
               {currentImageTags.map((tag, _i) => {
                 const globalIdx = tags.indexOf(tag);
                 return (
@@ -558,14 +519,13 @@ export function EditPostModal({ post, open, onClose }: EditPostModalProps) {
                     key={globalIdx}
                     className="absolute flex h-6 w-6 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 border-white bg-primary text-primary-foreground text-xs font-bold shadow"
                     style={{ left: `${tag.x}%`, top: `${tag.y}%` }}
-                    title={tag.customLabel ?? ITEM_LABELS[tag.itemType]}
+                    title={tag.customLabel ?? ITEM_CONFIG[tag.itemType].label}
                   >
                     {globalIdx + 1}
                   </div>
                 );
               })}
 
-              {/* Pending tag dot */}
               {pendingTag && (
                 <div
                   className="absolute flex h-6 w-6 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 border-white bg-muted text-xs font-bold shadow animate-pulse"
@@ -582,20 +542,16 @@ export function EditPostModal({ post, open, onClose }: EditPostModalProps) {
               )}
             </div>
 
-            {/* Pending tag form */}
             {pendingTag && (
               <div className="card p-3 space-y-2 border-primary/30">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                   Nueva prenda
                 </p>
                 <div className="grid grid-cols-2 gap-2">
-                  <select
+                  <ItemTypeSelect
                     value={pendingTag.itemType}
-                    onChange={(e) => setPendingTag({ ...pendingTag, itemType: e.target.value as ItemType })}
-                    className="field-input text-xs"
-                  >
-                    {ITEM_TYPES.map((t) => <option key={t} value={t}>{ITEM_LABELS[t]}</option>)}
-                  </select>
+                    onChange={(val) => setPendingTag({ ...pendingTag, itemType: val })}
+                  />
                   <input
                     value={pendingTag.customLabel}
                     onChange={(e) => setPendingTag({ ...pendingTag, customLabel: e.target.value })}
@@ -637,7 +593,6 @@ export function EditPostModal({ post, open, onClose }: EditPostModalProps) {
               </div>
             )}
 
-            {/* Editable tags list */}
             {tags.length > 0 && (
               <div className="space-y-2">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
@@ -650,13 +605,11 @@ export function EditPostModal({ post, open, onClose }: EditPostModalProps) {
                         <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground text-[10px] font-bold">
                           {i + 1}
                         </span>
-                        <select
+                        <ItemTypeSelect
                           value={tag.itemType}
-                          onChange={(e) => updateTagField(i, 'itemType', e.target.value)}
-                          className="field-input text-xs py-0.5 h-auto"
-                        >
-                          {ITEM_TYPES.map((t) => <option key={t} value={t}>{ITEM_LABELS[t]}</option>)}
-                        </select>
+                          onChange={(val) => updateTagField(i, 'itemType', val)}
+                          className="w-[140px]"
+                        />
                         {images.length > 1 && (
                           <span className="text-[10px] text-muted-foreground">Foto {tag.imageIndex + 1}</span>
                         )}

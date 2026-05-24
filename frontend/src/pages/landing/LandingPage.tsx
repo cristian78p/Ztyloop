@@ -103,7 +103,6 @@ export function LandingPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* ── Navbar ─────────────────────────────────────── */}
       <header className="sticky top-0 z-50 border-b border-border bg-card/90 backdrop-blur-md">
         <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-5">
           <span className="text-primary"><ZZLogo /></span>
@@ -117,9 +116,7 @@ export function LandingPage() {
         </div>
       </header>
 
-      {/* ── Hero ───────────────────────────────────────── */}
       <section className="relative overflow-hidden">
-        {/* Decorative background gradient */}
         <div className="pointer-events-none absolute inset-0 -z-10">
           <div className="absolute -top-32 left-1/2 h-[600px] w-[800px] -translate-x-1/2 rounded-full bg-primary/5 blur-3xl" />
         </div>
@@ -151,7 +148,6 @@ export function LandingPage() {
             </Link>
           </div>
 
-          {/* Social proof numbers */}
           <div className="mt-14 flex flex-wrap items-center justify-center gap-8 sm:gap-14">
             {STATS.map(({ value, label }) => (
               <div key={label} className="text-center">
@@ -163,7 +159,6 @@ export function LandingPage() {
         </div>
       </section>
 
-      {/* ── Outfit showcase grid ───────────────────────── */}
       <section className="mx-auto max-w-5xl px-5 py-4 pb-16">
         <div className="overflow-hidden rounded-2xl">
           <div className="grid grid-cols-3 sm:grid-cols-6 gap-1">
@@ -189,7 +184,6 @@ export function LandingPage() {
         </p>
       </section>
 
-      {/* ── Features grid ──────────────────────────────── */}
       <section className="mx-auto max-w-5xl px-5 py-12">
         <h2 className="font-serif text-center text-3xl font-semibold mb-3">
           Todo lo que necesitas
@@ -213,7 +207,6 @@ export function LandingPage() {
         </div>
       </section>
 
-      {/* ── CTA banner ─────────────────────────────────── */}
       <section className="mx-auto max-w-5xl px-5 py-8 pb-16">
         <div className="relative overflow-hidden rounded-2xl profile-banner-placeholder p-12 text-center">
           <div className="absolute inset-0 bg-black/20" />
@@ -236,7 +229,6 @@ export function LandingPage() {
         </div>
       </section>
 
-      {/* ── Footer ─────────────────────────────────────── */}
       <footer className="border-t border-border py-8 px-5">
         <div className="mx-auto max-w-5xl flex flex-col sm:flex-row items-center justify-between gap-4">
           <span className="text-primary"><ZZLogo width={30} /></span>
