@@ -82,13 +82,8 @@ export class PostService {
 
     const where = {
       deletedAt: null,
-      OR: [
-        {
-          authorId: { in: followingIds },
-          visibility: { in: ['PUBLIC', 'FOLLOWERS_ONLY'] as ('PUBLIC' | 'FOLLOWERS_ONLY')[] },
-        },
-        { authorId: userId },
-      ],
+      authorId: { in: followingIds },
+      visibility: { in: ['PUBLIC', 'FOLLOWERS_ONLY'] as ('PUBLIC' | 'FOLLOWERS_ONLY')[] },
     };
 
     const [posts, total] = await Promise.all([
